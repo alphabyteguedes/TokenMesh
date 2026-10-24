@@ -112,6 +112,8 @@ class OpenAIProvider(BaseLLMProvider):
             kwargs = dict_input
             messages = raw_messages
 
+        msg_list: list[dict[str, Any]] = messages if isinstance(messages, list) else [messages]
+
         api_key = kwargs.pop("api_key", None)
         effective_key = api_key or settings.OPENAI_API_KEY
         if (
@@ -119,7 +121,7 @@ class OpenAIProvider(BaseLLMProvider):
             or not effective_key
             or effective_key.startswith(("sk-your", "sk-demo"))
         ):
-            return _synthesize_response(messages, model)
+            return _synthesize_response(msg_list, model)
 
         headers: dict[str, str] = {}
         if api_key:
@@ -127,7 +129,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         payload: dict[str, Any] = {
             "model": model,
-            "messages": messages,
+            "messages": msg_list,
             **kwargs,
         }
         # Ensure we don't accidentally request a stream here.
@@ -146,7 +148,7 @@ class OpenAIProvider(BaseLLMProvider):
                     "OpenAI returned HTTP %s. Falling back to local synthetic completion.",
                     response.status_code,
                 )
-                return _synthesize_response(messages, model)
+                return _synthesize_response(msg_list, model)
             return {
                 "error": {
                     "message": response.text,
@@ -156,7 +158,7 @@ class OpenAIProvider(BaseLLMProvider):
             }
         except Exception as exc:
             logger.warning("Upstream call failed (%s). Falling back to synthetic completion.", exc)
-            return _synthesize_response(messages, model)
+            return _synthesize_response(msg_list, model)
 
     # -- streaming ----------------------------------------------------------
 

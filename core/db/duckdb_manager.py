@@ -381,6 +381,15 @@ class DuckDBManager:
             ],
         )
 
+    async def get_summary(
+        self,
+        currency: str = "USD",
+        custom_rate: float | None = None,
+    ) -> AnalyticsSummaryResult:
+        """Alias for get_analytics_summary."""
+        res = await self.get_analytics_summary(currency=currency, custom_rate=custom_rate)
+        return AnalyticsSummaryResult(res)
+
     async def get_analytics_summary(
         self,
         currency: str = "USD",
@@ -590,6 +599,52 @@ class DuckDBManager:
         except Exception:
             logger.warning("Failed to fetch recent analytics events.", exc_info=True)
             return []
+
+    async def purge_cache(self, older_than_days: int | None = None) -> int:
+        """Purge entries from semantic_cache, optionally older than N days. Returns count deleted."""
+        async with self._write_lock:
+            return await asyncio.to_thread(self._sync_purge_cache, older_than_days)
+
+    def _sync_purge_cache(self, older_than_days: int | None = None) -> int:
+        if self._conn is None:
+            return 0
+        try:
+            if older_than_days is not None and older_than_days > 0:
+                safe_days = int(older_than_days)
+                count_res = self._conn.execute(
+                    "SELECT COUNT(*) FROM semantic_cache WHERE created_at < CURRENT_TIMESTAMP - (? || ' days')::INTERVAL",
+                    [str(safe_days)],
+                ).fetchone()
+                count = count_res[0] if count_res else 0
+                self._conn.execute(
+                    "DELETE FROM semantic_cache WHERE created_at < CURRENT_TIMESTAMP - (? || ' days')::INTERVAL",
+                    [str(safe_days)],
+                )
+            else:
+                count_res = self._conn.execute("SELECT COUNT(*) FROM semantic_cache").fetchone()
+                count = count_res[0] if count_res else 0
+                self._conn.execute("DELETE FROM semantic_cache")
+            return int(count)
+        except Exception:
+            logger.warning("Failed to purge semantic_cache", exc_info=True)
+            return 0
+
+    async def get_stats(self) -> dict[str, int]:
+        """Return counts of cache entries and analytics events."""
+        return await asyncio.to_thread(self._sync_get_stats)
+
+    def _sync_get_stats(self) -> dict[str, int]:
+        if self._conn is None:
+            return {"cache_entries": 0, "analytics_events": 0}
+        try:
+            c1 = self._conn.execute("SELECT COUNT(*) FROM semantic_cache").fetchone()
+            c2 = self._conn.execute("SELECT COUNT(*) FROM analytics_events").fetchone()
+            return {
+                "cache_entries": c1[0] if c1 else 0,
+                "analytics_events": c2[0] if c2 else 0,
+            }
+        except Exception:
+            return {"cache_entries": 0, "analytics_events": 0}
 
     # ── Helpers ──────────────────────────────────────────────────────────
 

@@ -107,6 +107,8 @@ class AnthropicProvider(BaseLLMProvider):
             kwargs = dict_input
             messages = raw_messages
 
+        msg_list: list[dict[str, Any]] = messages if isinstance(messages, list) else [messages]
+
         api_key = kwargs.pop("api_key", None)
         effective_key = api_key or settings.ANTHROPIC_API_KEY
         if (
@@ -114,7 +116,7 @@ class AnthropicProvider(BaseLLMProvider):
             or not effective_key
             or effective_key.startswith(("sk-ant-your", "sk-ant-demo"))
         ):
-            return _synthesize_anthropic_response(messages, model)
+            return _synthesize_anthropic_response(msg_list, model)
 
         headers: dict[str, str] = {}
         if api_key:
@@ -122,7 +124,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         payload: dict[str, Any] = {
             "model": model,
-            "messages": messages,
+            "messages": msg_list,
             "max_tokens": kwargs.pop("max_tokens", _DEFAULT_MAX_TOKENS),
             **kwargs,
         }
@@ -142,7 +144,7 @@ class AnthropicProvider(BaseLLMProvider):
                     "Anthropic returned HTTP %s. Falling back to local synthetic completion.",
                     response.status_code,
                 )
-                return _synthesize_anthropic_response(messages, model)
+                return _synthesize_anthropic_response(msg_list, model)
             return {
                 "error": {
                     "message": response.text,
@@ -152,7 +154,7 @@ class AnthropicProvider(BaseLLMProvider):
             }
         except Exception as exc:
             logger.warning("Upstream Anthropic call failed (%s). Falling back to synthetic.", exc)
-            return _synthesize_anthropic_response(messages, model)
+            return _synthesize_anthropic_response(msg_list, model)
 
     # ------------------------------------------------------------------
     # Streaming
