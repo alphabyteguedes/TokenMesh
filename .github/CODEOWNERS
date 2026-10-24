@@ -1,0 +1,30 @@
+# TokenMesh Code Owners
+# Each line is a file pattern followed by one or more owners.
+
+# Global
+* @tokenmesh/maintainers
+
+# Core Database Engine
+/core/db/ @tokenmesh/db-team
+
+# Provider Integrations
+/core/providers/ @tokenmesh/providers-team
+
+# Processing Pipeline (DLP, Compression, Embedding)
+/core/pipeline/ @tokenmesh/pipeline-team
+
+# API Routes
+/core/api/ @tokenmesh/api-team
+
+# Frontend Dashboard
+/web/ @tokenmesh/frontend-team
+
+# CI/CD & DevOps
+/.github/ @tokenmesh/devops-team
+/Dockerfile @tokenmesh/devops-team
+/docker-compose.yml @tokenmesh/devops-team
+
+# Documentation
+/docs/ @tokenmesh/docs-team
+README.md @tokenmesh/maintainers
+CONTRIBUTING.md @tokenmesh/maintainers

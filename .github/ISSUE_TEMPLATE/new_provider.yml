@@ -1,0 +1,61 @@
+name: 🔌 New Provider Request
+description: Request support for a new LLM provider
+title: "[Provider]: "
+labels: ["enhancement", "new-provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want to add a new LLM provider? Fill out the details below.
+        See [CONTRIBUTING.md](../../CONTRIBUTING.md#adding-a-new-provider) for implementation guidance.
+
+  - type: input
+    id: provider
+    attributes:
+      label: Provider Name
+      placeholder: "e.g., Google Gemini, Mistral, Cohere"
+    validations:
+      required: true
+
+  - type: input
+    id: api-docs
+    attributes:
+      label: API Documentation URL
+      placeholder: "https://docs.provider.com/api"
+    validations:
+      required: true
+
+  - type: textarea
+    id: models
+    attributes:
+      label: Models to Support
+      description: List the models and their pricing (per 1M tokens)
+      placeholder: |
+        - model-name-1: $X.XX input / $X.XX output
+        - model-name-2: $X.XX input / $X.XX output
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-format
+    attributes:
+      label: API Format Details
+      description: Is it OpenAI-compatible, or does it need a custom route?
+      placeholder: "OpenAI-compatible / Custom format requiring translation"
+
+  - type: checkboxes
+    id: features
+    attributes:
+      label: Required Features
+      options:
+        - label: Non-streaming completions
+        - label: Streaming (SSE) completions
+        - label: System message support
+        - label: Tool/Function calling
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'm willing to implement this provider

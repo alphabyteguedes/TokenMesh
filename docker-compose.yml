@@ -1,0 +1,24 @@
+services:
+  tokenmesh:
+    build: .
+    container_name: tokenmesh
+    ports:
+      - "${TOKENMESH_PORT:-8787}:8787"
+    volumes:
+      - tokenmesh-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - TOKENMESH_HOST=0.0.0.0
+      - TOKENMESH_PORT=8787
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8787/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  tokenmesh-data:
+    driver: local

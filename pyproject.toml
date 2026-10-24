@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tokenmesh"
+version = "0.1.0"
+description = "AI Gateway & Semantic Reverse Proxy — Zero-cloud DuckDB-powered semantic cache with FinOps analytics"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+authors = [
+    {name = "TokenMesh Contributors"}
+]
+keywords = ["ai", "gateway", "proxy", "llm", "openai", "anthropic", "cache", "finops", "dlp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "duckdb>=1.1.0",
+    "fastembed>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.7.0",
+    "mypy>=1.12.0",
+    "pre-commit>=3.8.0",
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/tokenmesh/tokenmesh"
+Repository = "https://github.com/tokenmesh/tokenmesh"
+Issues = "https://github.com/tokenmesh/tokenmesh/issues"
+Documentation = "https://github.com/tokenmesh/tokenmesh#readme"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core"]
+
+[tool.hatch.build.targets.sdist]
+include = ["core", "web", "README.md", "LICENSE"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "DTZ", "T20", "ICN", "PIE", "PT", "RSE", "RET", "SLF", "SIM", "TID", "ARG", "ERA"]
+ignore = ["S101", "S104", "S105", "S106", "A003", "ARG001", "E402", "E501", "SIM105", "SIM115", "RET505", "RET506", "RET508", "SLF001", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["duckdb", "fastembed", "fastembed.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
