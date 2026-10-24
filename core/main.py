@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.api.routes_anthropic import router as anthropic_router
@@ -82,6 +82,13 @@ async def health_check() -> JSONResponse:
             "compression_enabled": settings.COMPRESSION_ENABLED,
         }
     )
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard_page() -> FileResponse:
+    """Serve the FinOps metrics dashboard."""
+    dashboard_path = os.path.join(web_dir, "dashboard.html")
+    return FileResponse(dashboard_path)
 
 
 # Mount static web dashboard (MUST be mounted after all API routes)

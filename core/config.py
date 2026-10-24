@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # ── DLP / compression feature flags ──────────────────────────────────
     DLP_ENABLED: bool = True
     COMPRESSION_ENABLED: bool = True
+    MOCK_MODE: bool = False
 
     # ── CORS ─────────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = ["*"]

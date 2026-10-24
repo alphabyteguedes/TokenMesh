@@ -1,1525 +1,1970 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TokenMesh — FinOps Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <title>TokenMesh — Gateway LLM Semântico & Motor FinOps em DuckDB</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            canvas: '#08090A',
+            surface: '#0C0D0E',
+            elevated: '#101114',
+            interactive: '#141518',
+            linearIndigo: '#5E6AD2',
+            linearEmerald: '#4CB782',
+            linearAmber: '#F2994A',
+            linearCrimson: '#EB5757',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    /* =========================================================
-       RESET & BASE
-       ========================================================= */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg-deepest:   #08090A;
-      --bg-card:      #0C0D0E;
-      --bg-elevated:  #101114;
-      --bg-hover:     #141519;
-
-      --text-primary:   rgba(255, 255, 255, 0.95);
-      --text-secondary: rgba(255, 255, 255, 0.55);
-      --text-tertiary:  rgba(255, 255, 255, 0.35);
-
-      --border-hairline: 1px solid rgba(255, 255, 255, 0.06);
-      --border-color:    rgba(255, 255, 255, 0.06);
-
-      --accent:  #5E6AD2;
-      --accent-dim: rgba(94, 106, 210, 0.15);
-      --success: #2DA44E;
-      --warning: #D4A72C;
-      --error:   #CF222E;
-
-      --radius: 8px;
-      --grid-marker: rgba(255, 255, 255, 0.15);
-
-      --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      --bg-canvas: #08090A;
+      --bg-surface: #0C0D0E;
+      --bg-elevated: #101114;
+      --bg-interactive: #141518;
+      --border-hairline: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.11);
+      --text-primary: #F7F8F8;
+      --text-secondary: #8A8F98;
+      --text-muted: #5E636E;
     }
 
-    html {
-      font-size: 14px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+    * {
+      box-sizing: border-box;
+      border-color: var(--border-hairline);
     }
 
     body {
-      font-family: var(--font-sans);
-      font-weight: 500;
-      letter-spacing: -0.035em;
+      background-color: var(--bg-canvas);
       color: var(--text-primary);
-      background: var(--bg-deepest);
-      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       overflow-x: hidden;
+      selection-background-color: rgba(94, 106, 210, 0.35);
     }
 
-    /* =========================================================
-       ARCHITECTURAL GRID OVERLAY
-       ========================================================= */
-    .grid-bg {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      overflow: hidden;
+    /* Linear Signature Atmospheric Spotlight */
+    .linear-spotlight {
+      background: radial-gradient(
+        ellipse 75% 42% at 50% -8%,
+        rgba(120, 119, 198, 0.15),
+        rgba(255, 255, 255, 0.018) 48%,
+        transparent 80%
+      );
     }
 
-    .grid-bg::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(to right,  var(--border-color) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--border-color) 1px, transparent 1px);
-      background-size: 120px 120px;
-      mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 100%);
-      -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 100%);
-    }
-
-    /* Grid intersection markers */
-    .grid-marker {
-      position: absolute;
-      color: var(--grid-marker);
-      font-family: var(--font-mono);
-      font-size: 10px;
-      line-height: 1;
-      user-select: none;
-    }
-
-    /* =========================================================
-       LAYOUT SHELL
-       ========================================================= */
-    .shell {
-      position: relative;
-      z-index: 1;
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 32px 64px;
-    }
-
-    /* =========================================================
-       HEADER / NAV
-       ========================================================= */
-    .nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 64px;
-      border-bottom: var(--border-hairline);
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .nav-brand {
-      font-family: var(--font-mono);
-      font-size: 1.15rem;
-      font-weight: 600;
-      letter-spacing: -0.04em;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .nav-brand .accent-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 6px rgba(94, 106, 210, 0.5);
-    }
-
-    .nav-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .control-select {
-      appearance: none;
-      background: var(--bg-card);
-      color: var(--text-secondary);
-      border: var(--border-hairline);
-      border-radius: 6px;
-      padding: 6px 28px 6px 10px;
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
+    /* Linear Metallic Gradient Heading */
+    .linear-heading {
+      background: linear-gradient(180deg, #FFFFFF 0%, rgba(255, 255, 255, 0.68) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.036em;
       font-weight: 500;
-      letter-spacing: -0.02em;
-      cursor: pointer;
-      outline: none;
-      transition: border-color 0.15s, color 0.15s;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.35)'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
     }
 
-    .control-select:hover {
-      border-color: rgba(255, 255, 255, 0.12);
-      color: var(--text-primary);
-    }
-
-    .control-select:focus {
-      border-color: var(--accent);
-    }
-
-    /* Custom currency modal */
-    .custom-currency-panel {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 100;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(4px);
-      align-items: center;
-      justify-content: center;
-    }
-
-    .custom-currency-panel.visible {
-      display: flex;
-    }
-
-    .custom-currency-card {
-      background: var(--bg-elevated);
-      border: var(--border-hairline);
-      border-radius: var(--radius);
-      padding: 28px 32px;
-      width: 340px;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-    }
-
-    .custom-currency-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-      letter-spacing: -0.03em;
-    }
-
-    .form-group {
-      margin-bottom: 14px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.8rem;
-      color: var(--text-tertiary);
-      margin-bottom: 6px;
-      letter-spacing: -0.01em;
-    }
-
-    .form-input {
-      width: 100%;
-      background: var(--bg-card);
-      border: var(--border-hairline);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    .form-input:focus {
-      border-color: var(--accent);
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 20px;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: background 0.15s, opacity 0.15s;
-      letter-spacing: -0.02em;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .btn-primary:hover { opacity: 0.85; }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-secondary);
-      border: var(--border-hairline);
-    }
-
-    .btn-ghost:hover {
-      color: var(--text-primary);
-      border-color: rgba(255,255,255,0.12);
-    }
-
-    /* =========================================================
-       SECTION TITLES
-       ========================================================= */
-    .section-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 16px;
-      margin-top: 40px;
-    }
-
-    /* =========================================================
-       KPI CARDS
-       ========================================================= */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1px;
-      background: var(--border-color);
-      border-radius: var(--radius);
-      overflow: hidden;
-      margin-top: 32px;
-      border: var(--border-hairline);
-    }
-
-    .kpi-card {
-      background: var(--bg-card);
-      padding: 24px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      position: relative;
-    }
-
-    .kpi-card::before {
-      content: '+';
-      position: absolute;
-      top: -1px;
-      left: -1px;
-      font-family: var(--font-mono);
-      font-size: 9px;
-      color: var(--grid-marker);
-      line-height: 1;
-      transform: translate(-50%, -50%);
-    }
-
-    .kpi-label {
-      font-size: 0.8rem;
-      color: var(--text-tertiary);
+    .linear-subhead {
+      letter-spacing: -0.025em;
       font-weight: 500;
-      letter-spacing: -0.01em;
+      color: #F7F8F8;
     }
 
-    .kpi-value {
-      font-family: var(--font-mono);
-      font-size: 2rem;
-      font-weight: 600;
-      letter-spacing: -0.04em;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.1;
+    /* Specular Top Highlight (Linear Card / Button signature) */
+    .specular-surface {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
     }
 
-    .kpi-trend {
-      font-size: 0.78rem;
+    .specular-elevated {
+      background-color: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+        0 24px 48px -12px rgba(0, 0, 0, 0.75);
+    }
+
+    /* Linear Primary White Button */
+    .btn-linear-primary {
+      background: #F7F8F8;
+      color: #08090A;
       font-weight: 500;
+      border-radius: 6px;
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transition: all 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-linear-primary:hover {
+      background: #FFFFFF;
+      transform: translateY(-0.5px);
+    }
+
+    /* Linear Secondary Dark Button */
+    .btn-linear-secondary {
+      background: rgba(255, 255, 255, 0.035);
+      color: #F7F8F8;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+      transition: all 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-linear-secondary:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Keyboard Shortcut Keycap */
+    .kbd-cap {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-    }
-
-    .kpi-trend.up { color: var(--success); }
-    .kpi-trend.down { color: var(--error); }
-    .kpi-trend.neutral { color: var(--text-tertiary); }
-
-    /* Progress ring for cache hit rate */
-    .kpi-ring-wrap {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .kpi-ring-wrap .kpi-value {
-      font-size: 1.85rem;
-    }
-
-    .progress-ring {
-      transform: rotate(-90deg);
-      flex-shrink: 0;
-    }
-
-    .progress-ring__bg {
-      stroke: rgba(255,255,255,0.06);
-      fill: none;
-    }
-
-    .progress-ring__fill {
-      fill: none;
-      stroke: var(--accent);
-      stroke-linecap: round;
-      transition: stroke-dashoffset 0.6s ease;
-    }
-
-    /* =========================================================
-       SAVINGS CHART
-       ========================================================= */
-    .chart-container {
-      background: var(--bg-card);
-      border: var(--border-hairline);
-      border-radius: var(--radius);
-      padding: 24px 28px 20px;
-      margin-top: 16px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .chart-container::before {
-      content: '+';
-      position: absolute;
-      top: -1px;
-      right: -1px;
-      font-family: var(--font-mono);
-      font-size: 9px;
-      color: var(--grid-marker);
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
       line-height: 1;
-      transform: translate(50%, -50%);
+      color: #8A8F98;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 4px;
+      box-shadow: inset 0 -1px 0 0 rgba(0, 0, 0, 0.4);
     }
 
-    .chart-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
+    /* Structural 1px Hairline Bento Matrix */
+    .bento-matrix {
+      display: grid;
+      gap: 1px;
+      background-color: rgba(255, 255, 255, 0.06);
     }
-
-    .chart-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      letter-spacing: -0.02em;
+    .bento-cell {
+      background-color: #08090A;
+      position: relative;
     }
-
-    .chart-legend {
-      font-size: 0.75rem;
-      font-family: var(--font-mono);
-      color: var(--text-tertiary);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .chart-area {
-      width: 100%;
-      height: 180px;
+    .bento-cell-surface {
+      background-color: #0C0D0E;
       position: relative;
     }
 
-    .chart-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 3px;
-      height: 100%;
-      padding-bottom: 24px;
-      position: relative;
+    /* Crosshair "+" intersection markers */
+    .crosshair-marker {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      pointer-events: none;
+      z-index: 20;
     }
-
-    .chart-bars::before {
+    .crosshair-marker::before,
+    .crosshair-marker::after {
       content: '';
       position: absolute;
-      bottom: 24px;
+      background-color: rgba(255, 255, 255, 0.22);
+    }
+    .crosshair-marker::before {
+      top: 4px;
       left: 0;
-      right: 0;
-      border-top: 1px dashed rgba(255,255,255,0.06);
+      width: 9px;
+      height: 1px;
     }
-
-    .chart-bar-col {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-      justify-content: flex-end;
-    }
-
-    .chart-bar {
-      width: 100%;
-      max-width: 24px;
-      border-radius: 3px 3px 0 0;
-      background: var(--accent);
-      opacity: 0.6;
-      transition: opacity 0.15s, height 0.4s ease;
-      min-height: 2px;
-      position: relative;
-    }
-
-    .chart-bar:hover {
-      opacity: 1;
-    }
-
-    .chart-bar-label {
-      font-family: var(--font-mono);
-      font-size: 0.6rem;
-      color: var(--text-tertiary);
-      margin-top: 6px;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Tooltip on hover */
-    .chart-bar::after {
-      content: attr(data-value);
-      position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--bg-elevated);
-      border: var(--border-hairline);
-      border-radius: 4px;
-      padding: 3px 7px;
-      font-family: var(--font-mono);
-      font-size: 0.65rem;
-      color: var(--text-primary);
-      white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.15s;
-    }
-
-    .chart-bar:hover::after {
-      opacity: 1;
-    }
-
-    /* =========================================================
-       CONTENT GRID (Table + Top Models)
-       ========================================================= */
-    .content-grid {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    /* =========================================================
-       ACTIVITY TABLE
-       ========================================================= */
-    .table-wrap {
-      background: var(--bg-card);
-      border: var(--border-hairline);
-      border-radius: var(--radius);
-      overflow: hidden;
-      position: relative;
-    }
-
-    .table-wrap::before {
-      content: '+';
-      position: absolute;
-      top: -1px;
-      left: -1px;
-      font-family: var(--font-mono);
-      font-size: 9px;
-      color: var(--grid-marker);
-      line-height: 1;
-      transform: translate(-50%, -50%);
-    }
-
-    .table-scroll {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.82rem;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 12px 16px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: var(--border-hairline);
-      white-space: nowrap;
-      position: sticky;
+    .crosshair-marker::after {
       top: 0;
-      background: var(--bg-card);
+      left: 4px;
+      width: 1px;
+      height: 9px;
     }
 
-    tbody tr {
-      border-bottom: var(--border-hairline);
-      transition: background 0.1s;
-    }
-
-    tbody tr:last-child { border-bottom: none; }
-
-    tbody tr:hover {
-      background: var(--bg-hover);
-    }
-
-    tbody td {
-      padding: 10px 16px;
-      white-space: nowrap;
-      color: var(--text-secondary);
-    }
-
-    td.mono {
-      font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
-      font-size: 0.78rem;
-    }
-
-    /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-    }
-
-    .badge-hit {
-      background: rgba(45, 164, 78, 0.12);
-      color: var(--success);
-    }
-
-    .badge-miss {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-tertiary);
-    }
-
-    .badge-redact {
-      background: rgba(212, 167, 44, 0.12);
-      color: var(--warning);
-      font-family: var(--font-mono);
-    }
-
-    .token-arrow {
-      color: var(--text-tertiary);
-      margin: 0 2px;
-    }
-
-    /* =========================================================
-       TOP MODELS PANEL
-       ========================================================= */
-    .top-models {
-      background: var(--bg-card);
-      border: var(--border-hairline);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      position: relative;
-    }
-
-    .top-models::after {
-      content: '+';
-      position: absolute;
-      bottom: -1px;
-      right: -1px;
-      font-family: var(--font-mono);
-      font-size: 9px;
-      color: var(--grid-marker);
-      line-height: 1;
-      transform: translate(50%, 50%);
-    }
-
-    .top-models-title {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 20px;
-    }
-
-    .model-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .model-row:last-child { margin-bottom: 0; }
-
-    .model-rank {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-tertiary);
-      width: 18px;
-      text-align: right;
-      flex-shrink: 0;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .model-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .model-name {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .model-bar-track {
+    /* Custom Linear-style Range Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
       height: 4px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.09);
       border-radius: 2px;
-      overflow: hidden;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #F7F8F8;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+      transition: transform 120ms ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #FFFFFF;
     }
 
-    .model-bar-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 2px;
-      transition: width 0.5s ease;
-    }
-
-    .model-count {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--text-tertiary);
-      flex-shrink: 0;
+    .tabular-nums {
       font-variant-numeric: tabular-nums;
     }
 
-    /* =========================================================
-       NO DATA STATE
-       ========================================================= */
-    .no-data {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
-      color: var(--text-tertiary);
-      text-align: center;
-      gap: 8px;
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
     }
-
-    .no-data-icon {
-      font-size: 2rem;
-      opacity: 0.3;
-      margin-bottom: 4px;
+    ::-webkit-scrollbar-track {
+      background: #08090A;
     }
-
-    .no-data-text {
-      font-size: 0.85rem;
-      font-weight: 500;
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
     }
-
-    /* =========================================================
-       FOOTER
-       ========================================================= */
-    .footer {
-      margin-top: 48px;
-      padding-top: 20px;
-      border-top: var(--border-hairline);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: var(--text-tertiary);
-    }
-
-    .footer-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--success);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    /* =========================================================
-       RESPONSIVE
-       ========================================================= */
-    @media (max-width: 1024px) {
-      .content-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .shell { padding: 0 16px 48px; }
-
-      .nav {
-        height: auto;
-        padding: 12px 0;
-        gap: 10px;
-      }
-
-      .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .content-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .chart-bars { gap: 2px; }
-      .chart-bar { max-width: 16px; }
-    }
-
-    @media (max-width: 480px) {
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .nav-controls {
-        flex-wrap: wrap;
-      }
-    }
-
-    /* =========================================================
-       SKELETON / LOADING
-       ========================================================= */
-    .skeleton {
-      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: 4px;
-    }
-
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
-    .skeleton-line {
-      height: 14px;
-      width: 80%;
-      margin-bottom: 8px;
-    }
-
-    .skeleton-value {
-      height: 32px;
-      width: 60%;
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.24);
     }
   </style>
 </head>
-<body>
+<body class="selection:bg-[#5E6AD2]/30 selection:text-white">
 
-  <!-- Architectural grid background -->
-  <div class="grid-bg" id="gridBg"></div>
+  <!-- Top Atmospheric Spotlight -->
+  <div class="linear-spotlight pointer-events-none fixed inset-x-0 top-0 z-0 h-[560px]"></div>
 
-  <div class="shell">
+  <!-- Minimal Linear Toast Notification -->
+  <div id="linear-toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 rounded-md border border-white/15 bg-[#101114]/95 px-3.5 py-2.5 text-xs font-medium text-[#F7F8F8] shadow-2xl backdrop-blur-md">
+    <span class="h-1.5 w-1.5 rounded-full bg-[#4CB782]"></span>
+    <span id="linear-toast-text">Copiado para a área de transferência</span>
+  </div>
 
-    <!-- ===================== HEADER / NAV ===================== -->
-    <nav class="nav">
-      <div class="nav-brand">
-        <span class="accent-dot"></span>
-        TokenMesh
+  <!-- ======================================================================= -->
+  <!-- COMMAND PALETTE MODAL (⌘K / Ctrl+K)                                     -->
+  <!-- ======================================================================= -->
+  <div id="cmd-palette-backdrop" onclick="closeCommandPalette(event)" class="fixed inset-0 z-50 hidden items-start justify-center bg-black/75 pt-[12vh] px-4 backdrop-blur-[2px]">
+    <div onclick="event.stopPropagation()" class="specular-elevated w-full max-w-xl overflow-hidden rounded-xl">
+      <div class="flex items-center border-b border-white/[0.07] px-4 py-3">
+        <svg class="mr-3 h-4 w-4 text-[#8A8F98]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input id="cmd-search-input" type="text" oninput="filterCommandPalette(this.value)" placeholder="Digite um comando, moeda (BRL, USD, EUR...) ou idioma..." class="w-full bg-transparent text-xs text-[#F7F8F8] placeholder-[#5E636E] focus:outline-none" />
+        <button onclick="closeCommandPalette()" class="kbd-cap">ESC</button>
       </div>
-      <div class="nav-controls">
-        <select class="control-select" id="langSelect" aria-label="Language">
-          <option value="pt-br">PT-BR</option>
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-        </select>
-        <select class="control-select" id="currencySelect" aria-label="Currency">
-          <option value="BRL">BRL (R$)</option>
-          <option value="USD">USD ($)</option>
-          <option value="EUR">EUR (€)</option>
-          <option value="GBP">GBP (£)</option>
-          <option value="JPY">JPY (¥)</option>
-          <option value="CAD">CAD (CA$)</option>
-          <option value="CHF">CHF</option>
-          <option value="AUD">AUD (A$)</option>
-          <option value="MXN">MXN (MX$)</option>
-          <option value="ARS">ARS (AR$)</option>
-          <option value="CUSTOM">Custom...</option>
-        </select>
+      <div id="cmd-list" class="max-h-[340px] overflow-y-auto p-1.5 text-xs">
+        <!-- Populated dynamically via JS -->
       </div>
-    </nav>
-
-    <!-- Page title -->
-    <h1 class="section-title" data-i18n="title" style="margin-top:28px;font-size:0.85rem;text-transform:none;letter-spacing:-0.02em;color:var(--text-secondary);">TokenMesh — Painel FinOps</h1>
-
-    <!-- ===================== KPI CARDS ===================== -->
-    <div class="kpi-grid" id="kpiGrid">
-      <!-- Total Requests -->
-      <div class="kpi-card">
-        <span class="kpi-label" data-i18n="total_requests">Total de Requisições</span>
-        <span class="kpi-value" id="kpiRequests">—</span>
-        <span class="kpi-trend neutral" id="kpiRequestsTrend"></span>
+      <div class="flex items-center justify-between border-t border-white/[0.06] bg-[#08090A]/60 px-4 py-2 font-mono text-[10px] text-[#5E636E]">
+        <span>TokenMesh Command Bar</span>
+        <div class="flex items-center gap-2">
+          <span>Navegar <kbd class="kbd-cap">↑↓</kbd></span>
+          <span>Executar <kbd class="kbd-cap">↵</kbd></span>
+        </div>
       </div>
-      <!-- Cache Hit Rate -->
-      <div class="kpi-card">
-        <span class="kpi-label" data-i18n="cache_hit_rate">Taxa de Cache Hit</span>
-        <div class="kpi-ring-wrap">
-          <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-            <circle class="progress-ring__bg" cx="24" cy="24" r="20" stroke-width="4" />
-            <circle class="progress-ring__fill" id="cacheRing" cx="24" cy="24" r="20" stroke-width="4"
-              stroke-dasharray="125.66" stroke-dashoffset="125.66" />
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- STICKY LINEAR HEADER (56px, Hairline Bottom Border)                     -->
+  <!-- ======================================================================= -->
+  <header class="sticky top-0 z-40 h-14 border-b border-white/[0.06] bg-[#08090A]/80 backdrop-blur-xl">
+    <div class="mx-auto flex h-full max-w-[1200px] items-center justify-between border-x border-white/[0.06] px-4 sm:px-6">
+      
+      <!-- Left: Brand Emblem + Version Pill -->
+      <div class="flex items-center gap-5">
+        <a href="#" class="flex items-center gap-2.5 text-sm font-medium tracking-tight text-[#F7F8F8]">
+          <div class="flex h-6 w-6 items-center justify-center rounded-md border border-white/15 bg-[#141518] shadow-inner">
+            <svg class="h-3.5 w-3.5 text-[#F7F8F8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3L3 8l9 5 9-5-9-5z" />
+              <path d="M3 16l9 5 9-5" />
+              <path d="M3 12l9 5 9-5" />
+            </svg>
+          </div>
+          <span>TokenMesh</span>
+        </a>
+
+        <span class="hidden rounded border border-white/[0.07] bg-white/[0.02] px-1.5 py-0.5 font-mono text-[10px] text-[#8A8F98] sm:inline-block">
+          v0.1.0 · Apache 2.0
+        </span>
+
+        <!-- Navigation Links -->
+        <nav class="hidden items-center gap-5 text-[13px] text-[#8A8F98] lg:flex">
+          <a href="#workspace" class="transition-colors hover:text-[#F7F8F8]" data-i18n="nav_console">Console ao Vivo</a>
+          <a href="#finops" class="transition-colors hover:text-[#F7F8F8]" data-i18n="nav_finops">Simulador FinOps</a>
+          <a href="#bento-arch" class="transition-colors hover:text-[#F7F8F8]" data-i18n="nav_arch">Arquitetura</a>
+          <a href="#code-blueprint" class="transition-colors hover:text-[#F7F8F8]" data-i18n="nav_code">Código & DuckDB</a>
+          <a href="/dashboard" class="flex items-center gap-1.5 rounded border border-[#5E6AD2]/40 bg-[#5E6AD2]/10 px-2.5 py-1 font-mono text-[11px] font-medium text-[#F7F8F8] transition hover:bg-[#5E6AD2]/20">📊 Dashboard FinOps</a>
+        </nav>
+      </div>
+
+      <!-- Right: Language Switcher + Universal Currency Selector + Command K + GitHub -->
+      <div class="flex items-center gap-2">
+
+        <!-- Language Segmented Control (PT | EN | ES) -->
+        <div class="flex items-center rounded-md border border-white/[0.08] bg-[#0C0D0E] p-0.5 text-[11px] font-medium">
+          <button onclick="setLanguage('pt')" id="lang-btn-pt" class="rounded px-2 py-0.5 transition bg-white/10 text-[#F7F8F8]">PT</button>
+          <button onclick="setLanguage('en')" id="lang-btn-en" class="rounded px-2 py-0.5 transition text-[#8A8F98] hover:text-[#F7F8F8]">EN</button>
+          <button onclick="setLanguage('es')" id="lang-btn-es" class="rounded px-2 py-0.5 transition text-[#8A8F98] hover:text-[#F7F8F8]">ES</button>
+        </div>
+
+        <!-- Global Multi-Currency Dropdown Trigger -->
+        <div class="relative">
+          <button onclick="toggleCurrencyPopover(event)" id="nav-currency-btn" class="btn-linear-secondary flex items-center gap-1.5 px-2.5 py-1 font-mono text-[11px]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#4CB782]"></span>
+            <span id="nav-currency-label">R$ BRL</span>
+            <svg class="h-3 w-3 text-[#8A8F98]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Currency & Custom Exchange Rate Popover -->
+          <div id="currency-popover" onclick="event.stopPropagation()" class="specular-elevated absolute right-0 mt-2 hidden w-72 rounded-xl p-3 z-50">
+            <div class="flex items-center justify-between border-b border-white/[0.06] pb-2">
+              <span class="text-[11px] font-medium text-[#F7F8F8]" data-i18n="curr_popover_title">Moeda de Exibição FinOps</span>
+              <span class="font-mono text-[10px] text-[#5E636E]">Base: USD</span>
+            </div>
+
+            <!-- Preset Currencies Grid -->
+            <div class="mt-2.5 grid grid-cols-3 gap-1" id="currency-preset-grid">
+              <!-- Populated by JS -->
+            </div>
+
+            <!-- Custom Currency Code & Symbol Inputs (Shown when CUSTOM or always editable rate) -->
+            <div class="mt-3 space-y-2 border-t border-white/[0.06] pt-2.5">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-mono text-[10px] text-[#8A8F98]" data-i18n="curr_code_label">Código (ex: BRL, BTC)</label>
+                  <input id="custom-curr-code" type="text" maxlength="6" oninput="applyCustomCurrencyMeta()" class="mt-1 w-full rounded border border-white/10 bg-[#08090A] px-2 py-1 font-mono text-xs text-[#F7F8F8] focus:border-[#5E6AD2] focus:outline-none" value="BRL" />
+                </div>
+                <div>
+                  <label class="block font-mono text-[10px] text-[#8A8F98]" data-i18n="curr_sym_label">Símbolo (ex: R$, €)</label>
+                  <input id="custom-curr-symbol" type="text" maxlength="5" oninput="applyCustomCurrencyMeta()" class="mt-1 w-full rounded border border-white/10 bg-[#08090A] px-2 py-1 font-mono text-xs text-[#F7F8F8] focus:border-[#5E6AD2] focus:outline-none" value="R$" />
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between">
+                  <label class="font-mono text-[10px] text-[#8A8F98]" data-i18n="curr_rate_label">Taxa de Conversão (1 USD =)</label>
+                  <span id="active-rate-pill" class="font-mono text-[10px] text-[#4CB782]">5.15 BRL</span>
+                </div>
+                <input id="custom-curr-rate" type="number" step="0.0001" min="0.000001" oninput="updateCustomExchangeRate(this.value)" class="mt-1 w-full rounded border border-white/10 bg-[#08090A] px-2.5 py-1 font-mono text-xs text-[#F7F8F8] tabular-nums focus:border-[#5E6AD2] focus:outline-none" value="5.15" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Command Palette Button -->
+        <button onclick="openCommandPalette()" class="btn-linear-secondary hidden items-center gap-1.5 px-2.5 py-1 text-xs sm:flex" title="Command Palette">
+          <span class="text-[#8A8F98]" data-i18n="nav_cmd">Comandos</span>
+          <span class="kbd-cap">⌘K</span>
+        </button>
+
+        <!-- GitHub Star Button -->
+        <button onclick="toggleStar()" class="btn-linear-primary flex items-center gap-1.5 px-3 py-1 text-xs">
+          <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
           </svg>
-          <span class="kpi-value" id="kpiCacheRate">—</span>
-        </div>
-        <span class="kpi-trend neutral" id="kpiCacheTrend"></span>
-      </div>
-      <!-- Tokens Saved -->
-      <div class="kpi-card">
-        <span class="kpi-label" data-i18n="tokens_saved">Tokens Economizados</span>
-        <span class="kpi-value" id="kpiTokensSaved">—</span>
-        <span class="kpi-trend neutral" id="kpiTokensTrend"></span>
-      </div>
-      <!-- Money Saved -->
-      <div class="kpi-card">
-        <span class="kpi-label" data-i18n="money_saved">Economia Total</span>
-        <span class="kpi-value" id="kpiMoneySaved">—</span>
-        <span class="kpi-trend neutral" id="kpiMoneyTrend"></span>
+          <span>GitHub</span>
+          <span id="star-counter" class="font-mono text-[11px] opacity-75 tabular-nums">2,480</span>
+        </button>
+
       </div>
     </div>
+  </header>
 
-    <!-- ===================== SAVINGS CHART ===================== -->
-    <p class="section-title" data-i18n="savings_chart">Economia Diária (30 dias)</p>
-    <div class="chart-container">
-      <div class="chart-header">
-        <span class="chart-title" id="chartPeriodLabel"></span>
-        <span class="chart-legend" id="chartTotalLabel"></span>
-      </div>
-      <div class="chart-area">
-        <div class="chart-bars" id="chartBars">
-          <!-- Populated by JS -->
+  <!-- ======================================================================= -->
+  <!-- MAIN STRUCTURAL RAIL CONTAINER (max-w-1200px, 1px Vertical Rails)       -->
+  <!-- ======================================================================= -->
+  <main class="relative z-10 mx-auto max-w-[1200px] border-x border-white/[0.06]">
+
+    <!-- 1. HERO SECTION -->
+    <section class="relative border-b border-white/[0.06] px-4 pt-16 pb-14 sm:px-10 md:pt-24 md:pb-20">
+      <!-- Crosshair markers -->
+      <div class="crosshair-marker -bottom-[5px] -left-[5px]"></div>
+      <div class="crosshair-marker -bottom-[5px] -right-[5px]"></div>
+
+      <div class="mx-auto max-w-3xl text-center">
+        <!-- Release Pill -->
+        <a href="#code-blueprint" class="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs text-[#8A8F98] transition hover:border-white/20 hover:text-[#F7F8F8]">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#5E6AD2]"></span>
+          <span data-i18n="hero_pill">TokenMesh 0.1 · Motor DuckDB VSS HNSW + FastEmbed Local</span>
+          <span class="text-[#5E636E]">→</span>
+        </a>
+
+        <!-- Linear Metallic Headline -->
+        <h1 class="linear-heading mt-6 text-4xl sm:text-6xl md:text-[64px] md:leading-[1.06]" data-i18n="hero_title">
+          Construído para cortar custos de LLM em escala.
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="mx-auto mt-6 max-w-2xl text-[15px] leading-relaxed text-[#8A8F98] sm:text-[17px]" data-i18n="hero_subtitle">
+          O TokenMesh é um proxy reverso open-source (Apache 2.0) que intercepta chamadas de SDKs da OpenAI, Anthropic e Cursor. Une cache semântico local sub-2ms via DuckDB HNSW, compressão heurística e mascaramento de dados sensíveis em um único arquivo embutido.
+        </p>
+
+        <!-- Primary Action Bar + Live Currency Savings Pill -->
+        <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <a href="#finops" class="btn-linear-primary flex items-center gap-2 px-4 py-2 text-[13px]">
+            <span data-i18n="hero_cta_primary">Simular economia na sua moeda</span>
+            <span>→</span>
+          </a>
+
+          <button onclick="copyCliCommand()" class="btn-linear-secondary flex items-center gap-3 px-3.5 py-2 font-mono text-xs text-[#8A8F98] hover:text-[#F7F8F8]">
+            <span class="text-[#5E636E]">$</span>
+            <span>docker compose up -d</span>
+            <span class="kbd-cap">C</span>
+          </button>
         </div>
-      </div>
-    </div>
 
-    <!-- ===================== TABLE + TOP MODELS ===================== -->
-    <p class="section-title" data-i18n="recent_activity">Atividade Recente</p>
-    <div class="content-grid">
-      <!-- Recent Activity Table -->
-      <div class="table-wrap">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th data-i18n="time">Horário</th>
-                <th data-i18n="provider">Provedor</th>
-                <th data-i18n="model">Modelo</th>
-                <th data-i18n="tokens">Tokens</th>
-                <th data-i18n="cost">Custo</th>
-                <th data-i18n="cache">Cache</th>
-                <th data-i18n="dlp">DLP</th>
-              </tr>
-            </thead>
-            <tbody id="activityBody">
-              <tr>
-                <td colspan="7">
-                  <div class="no-data" id="tableNoData">
-                    <div class="no-data-icon">⊘</div>
-                    <div class="no-data-text" data-i18n="no_data">Nenhum dado disponível ainda</div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Top Models -->
-      <div class="top-models">
-        <div class="top-models-title" data-i18n="top_models">Modelos Mais Usados</div>
-        <div id="topModelsContent">
-          <div class="no-data">
-            <div class="no-data-icon">⊘</div>
-            <div class="no-data-text" data-i18n="no_data">Nenhum dado disponível ainda</div>
+        <!-- Live Converted Benchmark Strip -->
+        <div class="mt-8 inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-lg border border-white/[0.06] bg-[#0C0D0E]/90 px-4 py-2 text-xs text-[#8A8F98]">
+          <div class="flex items-center gap-2">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#4CB782]"></span>
+            <span data-i18n="hero_strip_saved">Economia média (1.5M reqs/mês):</span>
+            <strong id="hero-live-savings" class="font-mono text-[#F7F8F8] tabular-nums">R$ 53.508 / mês</strong>
+          </div>
+          <span class="hidden text-white/10 sm:inline">|</span>
+          <div class="flex items-center gap-1.5 font-mono text-[11px]">
+            <span class="text-[#5E636E]">P99 Cache HIT:</span>
+            <span class="text-[#4CB782]">1.8 ms</span>
+          </div>
+          <span class="hidden text-white/10 sm:inline">|</span>
+          <div class="flex items-center gap-1.5 font-mono text-[11px]">
+            <span class="text-[#5E636E]">Infra Cloud:</span>
+            <span id="hero-zero-infra" class="text-[#F7F8F8]">R$ 0,00</span>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ===================== FOOTER ===================== -->
-    <div class="footer">
-      <div class="footer-status">
-        <span class="status-dot"></span>
-        <span id="footerStatus">TokenMesh Gateway</span>
-      </div>
-      <span id="footerRefresh"></span>
-    </div>
-
-  </div>
-
-  <!-- ===================== CUSTOM CURRENCY MODAL ===================== -->
-  <div class="custom-currency-panel" id="customCurrencyPanel">
-    <div class="custom-currency-card">
-      <h3 data-i18n="custom_currency">Moeda Customizada</h3>
-      <div class="form-group">
-        <label data-i18n="symbol">Símbolo</label>
-        <input type="text" class="form-input" id="customSymbol" placeholder="e.g. ₿" maxlength="6" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="exchange_rate">Taxa de Câmbio (USD)</label>
-        <input type="number" class="form-input" id="customRate" placeholder="1.00" step="0.0001" min="0" />
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" id="customApplyBtn" data-i18n="apply">Aplicar</button>
-        <button class="btn btn-ghost" id="customCancelBtn">✕</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================================================
-       JAVASCRIPT
-       ========================================================= -->
-  <script>
-    /* =======================================================
-       i18n TRANSLATIONS
-       ======================================================= */
-    const i18n = {
-      "pt-br": {
-        title: "TokenMesh — Painel FinOps",
-        total_requests: "Total de Requisições",
-        cache_hit_rate: "Taxa de Cache Hit",
-        tokens_saved: "Tokens Economizados",
-        money_saved: "Economia Total",
-        recent_activity: "Atividade Recente",
-        top_models: "Modelos Mais Usados",
-        time: "Horário",
-        provider: "Provedor",
-        model: "Modelo",
-        tokens: "Tokens",
-        cost: "Custo",
-        cache: "Cache",
-        dlp: "DLP",
-        savings_chart: "Economia Diária (30 dias)",
-        no_data: "Nenhum dado disponível ainda",
-        custom_currency: "Moeda Customizada",
-        symbol: "Símbolo",
-        exchange_rate: "Taxa de Câmbio (USD)",
-        apply: "Aplicar",
-        hit: "HIT",
-        miss: "MISS",
-        refreshed: "Atualizado",
-        period_30d: "Últimos 30 dias",
-        total_label: "Total no período"
-      },
-      "en": {
-        title: "TokenMesh — FinOps Dashboard",
-        total_requests: "Total Requests",
-        cache_hit_rate: "Cache Hit Rate",
-        tokens_saved: "Tokens Saved",
-        money_saved: "Total Savings",
-        recent_activity: "Recent Activity",
-        top_models: "Top Models",
-        time: "Time",
-        provider: "Provider",
-        model: "Model",
-        tokens: "Tokens",
-        cost: "Cost",
-        cache: "Cache",
-        dlp: "DLP",
-        savings_chart: "Daily Savings (30 days)",
-        no_data: "No data available yet",
-        custom_currency: "Custom Currency",
-        symbol: "Symbol",
-        exchange_rate: "Exchange Rate (USD)",
-        apply: "Apply",
-        hit: "HIT",
-        miss: "MISS",
-        refreshed: "Refreshed",
-        period_30d: "Last 30 days",
-        total_label: "Period total"
-      },
-      "es": {
-        title: "TokenMesh — Panel FinOps",
-        total_requests: "Total de Solicitudes",
-        cache_hit_rate: "Tasa de Cache Hit",
-        tokens_saved: "Tokens Ahorrados",
-        money_saved: "Ahorro Total",
-        recent_activity: "Actividad Reciente",
-        top_models: "Modelos Más Usados",
-        time: "Hora",
-        provider: "Proveedor",
-        model: "Modelo",
-        tokens: "Tokens",
-        cost: "Costo",
-        cache: "Caché",
-        dlp: "DLP",
-        savings_chart: "Ahorro Diario (30 días)",
-        no_data: "No hay datos disponibles aún",
-        custom_currency: "Moneda Personalizada",
-        symbol: "Símbolo",
-        exchange_rate: "Tasa de Cambio (USD)",
-        apply: "Aplicar",
-        hit: "HIT",
-        miss: "MISS",
-        refreshed: "Actualizado",
-        period_30d: "Últimos 30 días",
-        total_label: "Total del período"
-      }
-    };
-
-    /* =======================================================
-       CURRENCY SYMBOLS MAP
-       ======================================================= */
-    const currencySymbols = {
-      BRL: "R$", USD: "$", EUR: "€", GBP: "£", JPY: "¥",
-      CAD: "CA$", CHF: "CHF", AUD: "A$", MXN: "MX$", ARS: "AR$"
-    };
-
-    /* =======================================================
-       STATE
-       ======================================================= */
-    let currentLang = "pt-br";
-    let currentCurrency = "BRL";
-    let customSymbol = "";
-    let customRate = 1;
-    let refreshInterval = null;
-    let lastData = null;
-
-    /* =======================================================
-       DOM REFS
-       ======================================================= */
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => document.querySelectorAll(sel);
-
-    const langSelect = $("#langSelect");
-    const currencySelect = $("#currencySelect");
-    const customPanel = $("#customCurrencyPanel");
-    const customApplyBtn = $("#customApplyBtn");
-    const customCancelBtn = $("#customCancelBtn");
-
-    /* =======================================================
-       GRID INTERSECTION MARKERS (architectural detail)
-       ======================================================= */
-    function renderGridMarkers() {
-      const bg = $("#gridBg");
-      bg.innerHTML = "";
-      const cols = Math.ceil(window.innerWidth / 120) + 1;
-      const rows = Math.ceil(window.innerHeight / 120) + 1;
-      const maxMarkers = 60;
-      let count = 0;
-      for (let r = 0; r < rows && count < maxMarkers; r++) {
-        for (let c = 0; c < cols && count < maxMarkers; c++) {
-          if (Math.random() > 0.35) continue;
-          const marker = document.createElement("span");
-          marker.className = "grid-marker";
-          marker.textContent = "+";
-          marker.style.left = (c * 120) + "px";
-          marker.style.top = (r * 120) + "px";
-          bg.appendChild(marker);
-          count++;
-        }
-      }
-    }
-
-    /* =======================================================
-       FORMATTING UTILITIES
-       ======================================================= */
-    function getLocale() {
-      const map = { "pt-br": "pt-BR", "en": "en-US", "es": "es-ES" };
-      return map[currentLang] || "en-US";
-    }
-
-    function fmtNumber(n) {
-      if (n == null) return "—";
-      return new Intl.NumberFormat(getLocale()).format(n);
-    }
-
-    function fmtCompact(n) {
-      if (n == null) return "—";
-      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-      if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-      return fmtNumber(n);
-    }
-
-    function fmtMoney(n) {
-      if (n == null) return "—";
-      const sym = currentCurrency === "CUSTOM" ? customSymbol : (currencySymbols[currentCurrency] || currentCurrency);
-      const formatted = new Intl.NumberFormat(getLocale(), {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(n);
-      return sym + " " + formatted;
-    }
-
-    function fmtPercent(n) {
-      if (n == null) return "—";
-      return n.toFixed(1) + "%";
-    }
-
-    function fmtTime(ts) {
-      if (!ts) return "—";
-      try {
-        const d = new Date(ts);
-        return d.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      } catch {
-        return ts;
-      }
-    }
-
-    function trendHTML(value, suffix) {
-      if (value == null) return "";
-      const cls = value > 0 ? "up" : value < 0 ? "down" : "neutral";
-      const arrow = value > 0 ? "↑" : value < 0 ? "↓" : "→";
-      const display = Math.abs(value).toFixed(1);
-      return `<span class="kpi-trend ${cls}">${arrow} ${display}${suffix || "%"}</span>`;
-    }
-
-    /* =======================================================
-       LANGUAGE SWITCHING
-       ======================================================= */
-    function switchLanguage(lang) {
-      currentLang = lang;
-      const t = i18n[lang] || i18n["en"];
-
-      $$("[data-i18n]").forEach((el) => {
-        const key = el.getAttribute("data-i18n");
-        if (t[key]) el.textContent = t[key];
-      });
-
-      document.title = t.title;
-
-      if (lastData) updateUI(lastData);
-    }
-
-    /* =======================================================
-       CURRENCY SWITCHING
-       ======================================================= */
-    function switchCurrency(currency) {
-      if (currency === "CUSTOM") {
-        customPanel.classList.add("visible");
-        return;
-      }
-      currentCurrency = currency;
-      fetchDashboardData();
-    }
-
-    /* =======================================================
-       PROGRESS RING
-       ======================================================= */
-    function setRingProgress(pct) {
-      const ring = $("#cacheRing");
-      const circumference = 2 * Math.PI * 20;
-      const offset = circumference - (Math.min(pct, 100) / 100) * circumference;
-      ring.style.strokeDashoffset = offset;
-    }
-
-    /* =======================================================
-       CHART RENDERING
-       ======================================================= */
-    function renderChart(dailySavings) {
-      const container = $("#chartBars");
-      const t = i18n[currentLang] || i18n["en"];
-
-      if (!dailySavings || dailySavings.length === 0) {
-        container.innerHTML = `<div class="no-data" style="width:100%"><div class="no-data-icon">⊘</div><div class="no-data-text">${t.no_data}</div></div>`;
-        $("#chartPeriodLabel").textContent = t.period_30d;
-        $("#chartTotalLabel").textContent = "";
-        return;
-      }
-
-      const maxVal = Math.max(...dailySavings.map((d) => d.amount || 0), 1);
-      const totalSaved = dailySavings.reduce((s, d) => s + (d.amount || 0), 0);
-
-      $("#chartPeriodLabel").textContent = t.period_30d;
-      $("#chartTotalLabel").textContent = `${t.total_label}: ${fmtMoney(totalSaved)}`;
-
-      container.innerHTML = dailySavings
-        .map((d) => {
-          const h = Math.max(((d.amount || 0) / maxVal) * 140, 2);
-          const label = d.date ? d.date.slice(5) : "";
-          const showLabel = dailySavings.length <= 15 || dailySavings.indexOf(d) % Math.ceil(dailySavings.length / 10) === 0;
-          return `<div class="chart-bar-col">
-            <div class="chart-bar" style="height:${h}px" data-value="${fmtMoney(d.amount || 0)}"></div>
-            <span class="chart-bar-label">${showLabel ? label : ""}</span>
-          </div>`;
-        })
-        .join("");
-    }
-
-    /* =======================================================
-       TABLE RENDERING
-       ======================================================= */
-    function renderTable(activities) {
-      const tbody = $("#activityBody");
-      const t = i18n[currentLang] || i18n["en"];
-
-      if (!activities || activities.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7"><div class="no-data"><div class="no-data-icon">⊘</div><div class="no-data-text">${t.no_data}</div></div></td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = activities
-        .map((a) => {
-          const cacheClass = a.cache_hit ? "badge-hit" : "badge-miss";
-          const cacheText = a.cache_hit ? t.hit : t.miss;
-          const dlpText = a.dlp_redactions > 0
-            ? `<span class="badge badge-redact">${a.dlp_redactions}</span>`
-            : `<span style="color:var(--text-tertiary)">0</span>`;
-          const tokensOriginal = fmtCompact(a.tokens_original);
-          const tokensSent = fmtCompact(a.tokens_sent);
-
-          return `<tr>
-            <td class="mono">${fmtTime(a.timestamp)}</td>
-            <td>${escHTML(a.provider || "—")}</td>
-            <td style="color:var(--text-primary);font-weight:600">${escHTML(a.model || "—")}</td>
-            <td class="mono">${tokensOriginal} <span class="token-arrow">→</span> ${tokensSent}</td>
-            <td class="mono">${fmtMoney(a.cost)}</td>
-            <td><span class="badge ${cacheClass}">${cacheText}</span></td>
-            <td>${dlpText}</td>
-          </tr>`;
-        })
-        .join("");
-    }
-
-    function escHTML(s) {
-      const div = document.createElement("div");
-      div.textContent = s;
-      return div.innerHTML;
-    }
-
-    /* =======================================================
-       TOP MODELS RENDERING
-       ======================================================= */
-    function renderTopModels(models) {
-      const container = $("#topModelsContent");
-      const t = i18n[currentLang] || i18n["en"];
-
-      if (!models || models.length === 0) {
-        container.innerHTML = `<div class="no-data"><div class="no-data-icon">⊘</div><div class="no-data-text">${t.no_data}</div></div>`;
-        return;
-      }
-
-      const maxCount = Math.max(...models.map((m) => m.count || 0), 1);
-
-      container.innerHTML = models
-        .slice(0, 5)
-        .map((m, i) => {
-          const pct = ((m.count || 0) / maxCount) * 100;
-          return `<div class="model-row">
-            <span class="model-rank">${i + 1}</span>
-            <div class="model-info">
-              <div class="model-name">${escHTML(m.model || "—")}</div>
-              <div class="model-bar-track"><div class="model-bar-fill" style="width:${pct}%"></div></div>
+      <!-- =================================================================== -->
+      <!-- HERO DOUBLE-BEZEL APPLICATION WORKSPACE (Linear App Showcase)       -->
+      <!-- =================================================================== -->
+      <div id="workspace" class="mt-14 rounded-xl border border-white/[0.08] bg-white/[0.02] p-1.5 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.85)]">
+        <div class="specular-surface overflow-hidden rounded-lg">
+          
+          <!-- App Window Header Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#08090A] px-4 py-2.5">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1.5">
+                <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-white/10"></span>
+              </div>
+              <span class="font-mono text-[11px] text-[#8A8F98]">tokenmesh-gateway — data/tokenmesh.duckdb (HNSW Cosine)</span>
             </div>
-            <span class="model-count">${fmtCompact(m.count)}</span>
-          </div>`;
-        })
-        .join("");
+
+            <!-- Live Workspace Telemetry Bar -->
+            <div class="flex flex-wrap items-center gap-4 font-mono text-[11px]">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[#5E636E]" data-i18n="ws_session_saved">Economia na Sessão:</span>
+                <span id="ws-session-saved-val" class="font-medium text-[#4CB782] tabular-nums">R$ 14.820,40</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[#5E636E]">VSS Index:</span>
+                <span class="text-[#F7F8F8]">FLOAT[384]</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workspace Split Layout: Sidebar (3 cols) + Main Interactive Console (9 cols) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12">
+            
+            <!-- Left Workspace Navigation Sidebar -->
+            <div class="border-b border-white/[0.06] bg-[#08090A]/60 p-3 lg:col-span-3 lg:border-b-0 lg:border-r">
+              <div class="mb-2 px-2 font-mono text-[10px] uppercase tracking-wider text-[#5E636E]" data-i18n="ws_presets_title">
+                Cenários de Teste (/v1/chat)
+              </div>
+              <div class="space-y-1">
+                <button onclick="selectWorkspaceScenario(0)" id="ws-scen-0" class="flex w-full items-center justify-between rounded-md bg-white/[0.07] px-2.5 py-2 text-left text-xs font-medium text-[#F7F8F8] transition">
+                  <span class="truncate" data-i18n="scen_0_title">1. Query SQL DuckDB HNSW</span>
+                  <span class="kbd-cap">1</span>
+                </button>
+                <button onclick="selectWorkspaceScenario(1)" id="ws-scen-1" class="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-[#8A8F98] transition hover:bg-white/[0.04] hover:text-[#F7F8F8]">
+                  <span class="truncate" data-i18n="scen_1_title">2. Vazamento CPF + API Key</span>
+                  <span class="kbd-cap">2</span>
+                </button>
+                <button onclick="selectWorkspaceScenario(2)" id="ws-scen-2" class="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-[#8A8F98] transition hover:bg-white/[0.04] hover:text-[#F7F8F8]">
+                  <span class="truncate" data-i18n="scen_2_title">3. Contexto RAG Redundante</span>
+                  <span class="kbd-cap">3</span>
+                </button>
+              </div>
+
+              <!-- Pipeline Controls inside Sidebar -->
+              <div class="mt-5 border-t border-white/[0.06] pt-4 px-2 space-y-4">
+                <div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-[#8A8F98]" data-i18n="ws_threshold_label">Limiar Cosseno HNSW</span>
+                    <span id="ws-threshold-val" class="font-mono text-xs text-[#F7F8F8] tabular-nums">0.95</span>
+                  </div>
+                  <input id="ws-threshold-slider" type="range" min="0.80" max="0.99" step="0.01" value="0.95" oninput="updateWorkspaceThreshold(this.value)" class="mt-2" />
+                </div>
+
+                <label class="flex cursor-pointer items-center justify-between text-xs">
+                  <span class="text-[#8A8F98]" data-i18n="ws_dlp_toggle">DLP Local (CPF/CNPJ/Keys)</span>
+                  <input id="ws-dlp-check" type="checkbox" checked onchange="runWorkspaceSimulation('HIT', true)" class="h-3.5 w-3.5 rounded accent-[#5E6AD2]" />
+                </label>
+
+                <label class="flex cursor-pointer items-center justify-between text-xs">
+                  <span class="text-[#8A8F98]" data-i18n="ws_comp_toggle">Compressão Heurística</span>
+                  <input id="ws-comp-check" type="checkbox" checked onchange="runWorkspaceSimulation('HIT', true)" class="h-3.5 w-3.5 rounded accent-[#5E6AD2]" />
+                </label>
+              </div>
+
+              <!-- Quick Currency Switcher inside Workspace -->
+              <div class="mt-5 border-t border-white/[0.06] pt-4 px-2">
+                <span class="block font-mono text-[10px] uppercase tracking-wider text-[#5E636E]" data-i18n="ws_curr_quick">Moeda Ativa no Console</span>
+                <div class="mt-2 grid grid-cols-4 gap-1">
+                  <button onclick="selectPresetCurrency('BRL')" class="curr-quick-btn rounded border border-white/10 bg-white/[0.04] py-1 font-mono text-[10px] text-[#F7F8F8] hover:border-white/25" data-code="BRL">BRL</button>
+                  <button onclick="selectPresetCurrency('USD')" class="curr-quick-btn rounded border border-white/10 bg-white/[0.04] py-1 font-mono text-[10px] text-[#8A8F98] hover:border-white/25" data-code="USD">USD</button>
+                  <button onclick="selectPresetCurrency('EUR')" class="curr-quick-btn rounded border border-white/10 bg-white/[0.04] py-1 font-mono text-[10px] text-[#8A8F98] hover:border-white/25" data-code="EUR">EUR</button>
+                  <button onclick="selectPresetCurrency('GBP')" class="curr-quick-btn rounded border border-white/10 bg-white/[0.04] py-1 font-mono text-[10px] text-[#8A8F98] hover:border-white/25" data-code="GBP">GBP</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Workspace Main Console -->
+            <div class="p-4 sm:p-6 lg:col-span-9 flex flex-col justify-between">
+              <div>
+                <!-- Prompt Input & Action Buttons -->
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="rounded border border-[#5E6AD2]/40 bg-[#5E6AD2]/15 px-1.5 py-0.5 font-mono text-[10px] text-[#F7F8F8]">POST</span>
+                    <span class="font-mono text-xs text-[#F7F8F8]">/v1/chat/completions</span>
+                    <span class="font-mono text-[11px] text-[#5E636E]">· model: gpt-4o</span>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="runWorkspaceSimulation('MISS')" class="btn-linear-secondary px-3 py-1.5 text-xs">
+                      <span data-i18n="ws_btn_miss">1. Enviar Original (MISS)</span>
+                    </button>
+                    <button onclick="runWorkspaceSimulation('HIT')" class="btn-linear-primary px-3 py-1.5 text-xs">
+                      <span data-i18n="ws_btn_hit">2. Testar Prompt Similar (Cache HIT)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Editable Prompt Textarea -->
+                <div class="mt-3">
+                  <textarea id="ws-prompt-textarea" rows="2" oninput="runWorkspaceSimulation('HIT', true)" class="w-full rounded-md border border-white/[0.08] bg-[#08090A] p-3 font-mono text-xs leading-relaxed text-[#F7F8F8] focus:border-white/25 focus:outline-none"></textarea>
+                </div>
+
+                <!-- 4-Step Telemetry Strip (1px Hairline Matrix) -->
+                <div class="bento-matrix mt-4 grid-cols-2 sm:grid-cols-4 rounded-md overflow-hidden border border-white/[0.06]">
+                  <div class="bento-cell p-3">
+                    <span class="font-mono text-[10px] text-[#5E636E]">01 · DLP & COMPRESS</span>
+                    <div id="ws-step-1" class="mt-1 font-mono text-xs font-medium text-[#F7F8F8] tabular-nums">-21% tokens</div>
+                  </div>
+                  <div class="bento-cell p-3">
+                    <span class="font-mono text-[10px] text-[#5E636E]">02 · FASTEMBED ONNX</span>
+                    <div id="ws-step-2" class="mt-1 font-mono text-xs font-medium text-[#F7F8F8] tabular-nums">FLOAT[384] · 0.8ms</div>
+                  </div>
+                  <div class="bento-cell p-3">
+                    <span class="font-mono text-[10px] text-[#5E636E]">03 · DUCKDB HNSW</span>
+                    <div id="ws-step-3" class="mt-1 font-mono text-xs font-medium text-[#4CB782] tabular-nums">cos_sim: 0.9684</div>
+                  </div>
+                  <div class="bento-cell p-3">
+                    <span class="font-mono text-[10px] text-[#5E636E]" data-i18n="ws_step4_label">04 · ECONOMIA REQUEST</span>
+                    <div id="ws-step-4" class="mt-1 font-mono text-xs font-medium text-[#4CB782] tabular-nums">R$ 0,1420 (720 tok)</div>
+                  </div>
+                </div>
+
+                <!-- Output Inspector Grid: Sanitized Prompt + HTTP Response / DuckDB Ledger -->
+                <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <!-- Sanitized Payload -->
+                  <div class="rounded-md border border-white/[0.06] bg-[#08090A] p-3.5">
+                    <div class="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                      <span class="font-mono text-[11px] text-[#8A8F98]" data-i18n="ws_sanitized_title">Payload Normalizado & Sanitizado (DLP)</span>
+                      <span id="ws-dlp-pill" class="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-[#8A8F98]">0 PII</span>
+                    </div>
+                    <p id="ws-sanitized-text" class="mt-2.5 font-mono text-xs leading-relaxed text-[#F7F8F8] break-words"></p>
+                  </div>
+
+                  <!-- HTTP Headers & DuckDB Event Row -->
+                  <div class="rounded-md border border-white/[0.06] bg-[#08090A] p-3.5">
+                    <div class="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                      <span class="font-mono text-[11px] text-[#8A8F98]">Response Headers & DuckDB OLAP</span>
+                      <span id="ws-hit-badge" class="rounded px-1.5 py-0.5 font-mono text-[10px] font-medium bg-[#4CB782]/15 text-[#4CB782]">X-Cache: HIT · 1.9ms</span>
+                    </div>
+                    <pre id="ws-http-preview" class="mt-2.5 overflow-x-auto font-mono text-[11px] leading-relaxed text-[#8A8F98]"></pre>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live DuckDB `analytics_events` Ledger Table -->
+              <div class="mt-4 border-t border-white/[0.06] pt-3">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-mono text-[10px] text-[#5E636E]">SELECT id, cache_hit, similarity_score, tokens_saved, cost_saved FROM analytics_events LIMIT 3;</span>
+                  <span class="font-mono text-[10px] text-[#8A8F98]" id="ws-ledger-curr-tag">Moeda: BRL (R$)</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left font-mono text-[11px]">
+                    <thead>
+                      <tr class="border-b border-white/[0.06] text-[#5E636E]">
+                        <th class="py-1 pr-3 font-normal">event_id</th>
+                        <th class="py-1 pr-3 font-normal">status</th>
+                        <th class="py-1 pr-3 font-normal">cos_sim</th>
+                        <th class="py-1 pr-3 font-normal">tokens_saved</th>
+                        <th class="py-1 pr-3 font-normal" data-i18n="th_saved_curr">economia_convertida</th>
+                        <th class="py-1 font-normal text-right">latency</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ws-ledger-tbody" class="divide-y divide-white/[0.04] text-[#8A8F98] tabular-nums">
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- 2. UNIVERSAL MULTI-CURRENCY FINOPS & ROI CALCULATOR                     -->
+    <!-- ======================================================================= -->
+    <section id="finops" class="relative border-b border-white/[0.06]">
+      <div class="crosshair-marker -bottom-[5px] -left-[5px]"></div>
+      <div class="crosshair-marker -bottom-[5px] -right-[5px]"></div>
+
+      <!-- Section Header -->
+      <div class="border-b border-white/[0.06] px-4 py-10 sm:px-10">
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <span class="font-mono text-[11px] uppercase tracking-wider text-[#5E6AD2]" data-i18n="finops_eyebrow">01 · Motor FinOps Multimoeda</span>
+            <h2 class="linear-heading mt-2 text-2xl sm:text-4xl" data-i18n="finops_title">
+              Simule sua economia em qualquer moeda ou câmbio corporativo.
+            </h2>
+          </div>
+          <p class="max-w-md text-xs leading-relaxed text-[#8A8F98]" data-i18n="finops_desc">
+            Converta instantaneamente para Real (R$), Dólar (US$), Euro (€), Libra (£), Iene (¥) ou defina sua própria moeda e cotação (ex: PTAX + IOF).
+          </p>
+        </div>
+
+        <!-- Currency Pill Bar inside FinOps Section -->
+        <div class="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.06] bg-[#0C0D0E] p-2.5">
+          <span class="px-2 font-mono text-[11px] text-[#8A8F98]" data-i18n="finops_choose_curr">Converter para:</span>
+          <div id="finops-currency-bar" class="flex flex-wrap items-center gap-1">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- Inline Custom Currency & Exchange Rate Editor -->
+          <div class="ml-auto flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2 sm:border-t-0 sm:pt-0">
+            <div class="flex items-center gap-1.5 rounded border border-white/[0.08] bg-[#08090A] px-2 py-1">
+              <span class="font-mono text-[10px] text-[#5E636E]" data-i18n="finops_sym_inline">Símbolo:</span>
+              <input id="inline-curr-symbol" type="text" maxlength="5" oninput="syncInlineCurrencyEdit()" class="w-12 bg-transparent font-mono text-xs text-[#F7F8F8] focus:outline-none" value="R$" />
+            </div>
+            <div class="flex items-center gap-1.5 rounded border border-white/[0.08] bg-[#08090A] px-2 py-1">
+              <span class="font-mono text-[10px] text-[#5E636E]">1 USD =</span>
+              <input id="inline-curr-rate" type="number" step="0.01" min="0.0001" oninput="syncInlineRateEdit(this.value)" class="w-20 bg-transparent font-mono text-xs text-[#4CB782] tabular-nums focus:outline-none" value="5.15" />
+              <span id="inline-curr-code-label" class="font-mono text-[10px] text-[#8A8F98]">BRL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-Column Hairline Bento Grid for ROI Calculator -->
+      <div class="bento-matrix grid-cols-1 lg:grid-cols-12">
+        
+        <!-- Left Cell: Interactive Parameters (6 cols) -->
+        <div class="bento-cell p-6 sm:p-10 lg:col-span-6 space-y-6">
+          
+          <!-- Monthly Requests Slider -->
+          <div>
+            <div class="flex justify-between text-xs">
+              <span class="text-[#8A8F98]" data-i18n="calc_req_label">Volume Mensal de Requisições LLM</span>
+              <span id="roi-req-display" class="font-mono font-medium text-[#F7F8F8] tabular-nums">1.500.000 reqs/mês</span>
+            </div>
+            <input id="roi-req-slider" type="range" min="100000" max="15000000" step="100000" value="1500000" oninput="recalculateFinOps()" class="mt-3" />
+            <div class="mt-1 flex justify-between font-mono text-[10px] text-[#5E636E]">
+              <span>100k</span>
+              <span>5M</span>
+              <span>15M reqs/mês</span>
+            </div>
+          </div>
+
+          <!-- Avg Tokens per Request -->
+          <div>
+            <div class="flex justify-between text-xs">
+              <span class="text-[#8A8F98]" data-i18n="calc_tok_label">Média de Tokens por Requisição (Contexto + Saída)</span>
+              <span id="roi-tok-display" class="font-mono font-medium text-[#F7F8F8] tabular-nums">1.800 tokens</span>
+            </div>
+            <input id="roi-tok-slider" type="range" min="400" max="8000" step="100" value="1800" oninput="recalculateFinOps()" class="mt-3" />
+          </div>
+
+          <!-- Semantic Cache Hit Rate -->
+          <div>
+            <div class="flex justify-between text-xs">
+              <span class="text-[#8A8F98]" data-i18n="calc_hit_label">Taxa de Cache Semântico (DuckDB HNSW)</span>
+              <span id="roi-hit-display" class="font-mono font-medium text-[#4CB782] tabular-nums">45%</span>
+            </div>
+            <input id="roi-hit-slider" type="range" min="10" max="80" step="5" value="45" oninput="recalculateFinOps()" class="mt-3" />
+          </div>
+
+          <!-- Heuristic Compression Rate -->
+          <div>
+            <div class="flex justify-between text-xs">
+              <span class="text-[#8A8F98]" data-i18n="calc_comp_label">Redução por Compressão Heurística (em Cache Miss)</span>
+              <span id="roi-comp-display" class="font-mono font-medium text-[#F7F8F8] tabular-nums">18%</span>
+            </div>
+            <input id="roi-comp-slider" type="range" min="5" max="35" step="1" value="18" oninput="recalculateFinOps()" class="mt-3" />
+          </div>
+
+          <!-- Model Selector -->
+          <div class="pt-2">
+            <label class="block text-xs text-[#8A8F98] mb-2.5" data-i18n="calc_model_label">Modelo LLM Principal (Preço Base USD / 1K Tokens):</label>
+            <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <button onclick="setRoiModel('gpt-4o', 0.0065)" id="roi-mod-gpt-4o" class="rounded border border-white/25 bg-white/[0.08] py-2 font-mono text-xs font-medium text-[#F7F8F8] transition">
+                GPT-4o
+              </button>
+              <button onclick="setRoiModel('claude-3-5', 0.0075)" id="roi-mod-claude-3-5" class="rounded border border-white/[0.07] bg-[#0C0D0E] py-2 font-mono text-xs text-[#8A8F98] transition hover:text-[#F7F8F8]">
+                Claude 3.5
+              </button>
+              <button onclick="setRoiModel('o3-mini', 0.0025)" id="roi-mod-o3-mini" class="rounded border border-white/[0.07] bg-[#0C0D0E] py-2 font-mono text-xs text-[#8A8F98] transition hover:text-[#F7F8F8]">
+                o3-mini
+              </button>
+              <button onclick="setRoiModel('deepseek-r1', 0.0014)" id="roi-mod-deepseek-r1" class="rounded border border-white/[0.07] bg-[#0C0D0E] py-2 font-mono text-xs text-[#8A8F98] transition hover:text-[#F7F8F8]">
+                DeepSeek R1
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Cell: Precision Financial Output (6 cols) -->
+        <div class="bento-cell-surface p-6 sm:p-10 lg:col-span-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-[#8A8F98]" data-i18n="roi_annual_label">Economia Anual Projetada</span>
+              <span id="roi-usd-reference" class="font-mono text-xs text-[#5E636E] tabular-nums">≈ $124,656 USD / ano</span>
+            </div>
+
+            <!-- Huge Crisp Linear Tabular Readout in Active Currency -->
+            <div id="roi-annual-primary" class="linear-heading mt-2 text-4xl sm:text-5xl tabular-nums">
+              R$ 641.978 / ano
+            </div>
+
+            <div class="mt-2 flex items-center gap-2 font-mono text-xs text-[#4CB782] tabular-nums">
+              <span data-i18n="roi_monthly_label">Economia Mensal:</span>
+              <strong id="roi-monthly-primary">R$ 53.498 / mês</strong>
+            </div>
+
+            <!-- Comparative Cost Bars -->
+            <div class="mt-8 space-y-4 border-t border-white/[0.06] pt-6">
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-[#8A8F98]" data-i18n="roi_raw_cost_label">Sem TokenMesh (API Bruta + Redis/Vector Cloud)</span>
+                  <span id="roi-raw-cost-val" class="font-mono text-[#F7F8F8] tabular-nums">R$ 92.030 / mês</span>
+                </div>
+                <div class="h-2 w-full rounded-sm bg-white/[0.06] overflow-hidden">
+                  <div class="h-full w-full bg-[#EB5757]/70"></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-[#F7F8F8] font-medium" data-i18n="roi_mesh_cost_label">Com TokenMesh (DuckDB Embutido + Cache + Compressão)</span>
+                  <span id="roi-mesh-cost-val" class="font-mono font-medium text-[#4CB782] tabular-nums">R$ 38.532 / mês</span>
+                </div>
+                <div class="h-2 w-full rounded-sm bg-white/[0.06] overflow-hidden">
+                  <div id="roi-mesh-bar" class="h-full bg-[#4CB782] transition-all duration-300" style="width: 42%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Granular Ledger Breakdown -->
+            <div class="mt-6 space-y-2 rounded-md border border-white/[0.06] bg-[#08090A] p-4 font-mono text-xs">
+              <div class="flex justify-between">
+                <span class="text-[#8A8F98]" data-i18n="roi_tokens_eliminated">Tokens Poupados / Mês:</span>
+                <span id="roi-tokens-saved" class="text-[#F7F8F8] tabular-nums">1,48B tokens</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[#8A8F98]" data-i18n="roi_infra_avoided">Infra Cloud Evitada (Pinecone + Redis):</span>
+                <span id="roi-infra-saved" class="text-[#4CB782] tabular-nums">R$ 1.648 / mês</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[#8A8F98]" data-i18n="roi_embed_cost">Custo de Vetorização (FastEmbed CPU):</span>
+                <span id="roi-embed-zero" class="text-[#F7F8F8] tabular-nums">R$ 0,00 (100% Local)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+            <span class="font-mono text-[11px] text-[#5E636E]" id="roi-footer-rate">Câmbio ativo: 1 USD = 5.15 BRL</span>
+            <button onclick="copyExecutiveReport()" class="btn-linear-secondary px-3 py-1.5 text-xs">
+              <span data-i18n="roi_copy_report">Copiar Relatório Executivo FinOps</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- 3. ARCHITECTURAL BENTO GRID (Linear 1px Hairline Matrix)                -->
+    <!-- ======================================================================= -->
+    <section id="bento-arch" class="relative border-b border-white/[0.06]">
+      <div class="crosshair-marker -bottom-[5px] -left-[5px]"></div>
+      <div class="crosshair-marker -bottom-[5px] -right-[5px]"></div>
+
+      <div class="border-b border-white/[0.06] px-4 py-10 sm:px-10">
+        <span class="font-mono text-[11px] uppercase tracking-wider text-[#8A8F98]" data-i18n="arch_eyebrow">02 · Engenharia Zero-Infra</span>
+        <h2 class="linear-heading mt-2 text-2xl sm:text-4xl" data-i18n="arch_title">
+          Toda a pilha de gateway colapsada em um único arquivo DuckDB.
+        </h2>
+      </div>
+
+      <div class="bento-matrix grid-cols-1 md:grid-cols-12">
+        
+        <!-- Bento 1: DuckDB VSS HNSW (7 cols) -->
+        <div class="bento-cell p-6 sm:p-9 md:col-span-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-[#8A8F98]">DUCKDB VSS · HNSW COSINE INDEX</span>
+              <span class="rounded border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-[#4CB782]">P99 &lt; 2.4ms</span>
+            </div>
+            <h3 class="linear-subhead mt-3 text-lg" data-i18n="bento1_title">Busca Vetorial In-Process Sub-Milissegundo</h3>
+            <p class="mt-2 text-xs leading-relaxed text-[#8A8F98]" data-i18n="bento1_desc">
+              Esqueça clusters externos de Redis ou Qdrant. O TokenMesh armazena vetores <code class="font-mono text-[#F7F8F8]">FLOAT[384]</code> com índices HNSW persistidos diretamente no arquivo <code class="font-mono text-[#F7F8F8]">tokenmesh.duckdb</code>, eliminando saltos de rede e serialização TCP.
+            </p>
+          </div>
+
+          <!-- Latency Comparison Micro-Chart -->
+          <div class="mt-6 space-y-3 rounded-md border border-white/[0.06] bg-[#0C0D0E] p-4 font-mono text-[11px]">
+            <div>
+              <div class="flex justify-between text-[#F7F8F8]">
+                <span>TokenMesh (DuckDB In-Process HNSW)</span>
+                <span class="text-[#4CB782]">1.8 ms</span>
+              </div>
+              <div class="mt-1.5 h-1.5 w-full rounded-sm bg-white/[0.05]">
+                <div class="h-full w-[4%] rounded-sm bg-[#4CB782]"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-[#8A8F98]">
+                <span>Gateway Tradicional + Redis + Cloud Vector DB</span>
+                <span>64.0 ms</span>
+              </div>
+              <div class="mt-1.5 h-1.5 w-full rounded-sm bg-white/[0.05]">
+                <div class="h-full w-[78%] rounded-sm bg-white/25"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento 2: Local DLP Zero-Trust (5 cols) -->
+        <div class="bento-cell p-6 sm:p-9 md:col-span-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-[#8A8F98]">ZERO-TRUST DLP · LGPD & GDPR</span>
+              <span class="rounded border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-[#8A8F98]">CPU Regex</span>
+            </div>
+            <h3 class="linear-subhead mt-3 text-lg" data-i18n="bento2_title">Sanitização Automática de PII</h3>
+            <p class="mt-2 text-xs leading-relaxed text-[#8A8F98]" data-i18n="bento2_desc">
+              Mascara CPF, CNPJ, cartões de crédito, e-mails corporativos e chaves <code class="font-mono text-[#F7F8F8]">sk-*</code> localmente antes do prompt sair da sua rede privada.
+            </p>
+          </div>
+
+          <div class="mt-6 rounded-md border border-white/[0.06] bg-[#0C0D0E] p-3.5 font-mono text-[11px] space-y-2">
+            <div class="flex items-center justify-between text-[#5E636E]">
+              <span>Input: "Cliente CPF 123.456.789-00"</span>
+            </div>
+            <div class="flex items-center justify-between text-[#F7F8F8] border-t border-white/[0.05] pt-2">
+              <span>Output: "Cliente CPF <span class="rounded bg-[#EB5757]/20 px-1 text-[#EB5757]">[REDACTED_CPF]</span>"</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento 3: Threadpool ONNX FastEmbed (5 cols) -->
+        <div class="bento-cell p-6 sm:p-9 md:col-span-5 flex flex-col justify-between">
+          <div>
+            <span class="font-mono text-[11px] text-[#8A8F98]">FASTEMBED ONNX · ASYNC THREADPOOL</span>
+            <h3 class="linear-subhead mt-3 text-lg" data-i18n="bento3_title">Vetorização em CPU Não-Bloqueante</h3>
+            <p class="mt-2 text-xs leading-relaxed text-[#8A8F98]" data-i18n="bento3_desc">
+              Executa o modelo <code class="font-mono text-[#F7F8F8]">BAAI/bge-small-en-v1.5</code> via ONNX Runtime isolado em <code class="font-mono text-[#F7F8F8]">asyncio.to_thread</code>, garantindo que o event loop do FastAPI nunca trave sob alta concorrência.
+            </p>
+          </div>
+
+          <div class="mt-6 rounded-md border border-white/[0.06] bg-[#0C0D0E] p-3.5 font-mono text-[11px] text-[#8A8F98]">
+            <code>vec = await asyncio.to_thread(embedder.embed, prompt)</code>
+          </div>
+        </div>
+
+        <!-- Bento 4: Drop-in SDK Compatibility (7 cols) -->
+        <div class="bento-cell p-6 sm:p-9 md:col-span-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] text-[#8A8F98]">1-LINE SDK DROP-IN</span>
+              <div class="flex gap-1">
+                <button onclick="switchSdkSnippet('python')" id="sdk-btn-python" class="rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] text-[#F7F8F8]">Python</button>
+                <button onclick="switchSdkSnippet('ts')" id="sdk-btn-ts" class="rounded px-2 py-0.5 font-mono text-[10px] text-[#8A8F98] hover:text-[#F7F8F8]">TypeScript</button>
+                <button onclick="switchSdkSnippet('cursor')" id="sdk-btn-cursor" class="rounded px-2 py-0.5 font-mono text-[10px] text-[#8A8F98] hover:text-[#F7F8F8]">Cursor IDE</button>
+              </div>
+            </div>
+            <h3 class="linear-subhead mt-3 text-lg" data-i18n="bento4_title">Compatível com qualquer SDK OpenAI ou Anthropic</h3>
+          </div>
+
+          <pre id="sdk-snippet-box" class="mt-4 overflow-x-auto rounded-md border border-white/[0.06] bg-[#0C0D0E] p-3.5 font-mono text-[11px] leading-relaxed text-[#F7F8F8]"></pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- 4. PRODUCTION CODE & DUCKDB ENGINE INSPECTOR                            -->
+    <!-- ======================================================================= -->
+    <section id="code-blueprint" class="relative px-4 py-12 sm:px-10">
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end mb-6">
+        <div>
+          <span class="font-mono text-[11px] uppercase tracking-wider text-[#8A8F98]" data-i18n="code_eyebrow">03 · Código Fonte & Governança Apache 2.0</span>
+          <h2 class="linear-heading mt-2 text-2xl sm:text-3xl" data-i18n="code_title">
+            Inspecione o motor DuckDB HNSW e o Proxy FastAPI.
+          </h2>
+        </div>
+
+        <button onclick="copyActiveBlueprintCode()" class="btn-linear-secondary self-start sm:self-auto px-3 py-1.5 font-mono text-xs">
+          <span data-i18n="code_copy_btn">Copiar Arquivo</span>
+        </button>
+      </div>
+
+      <div class="specular-surface overflow-hidden rounded-lg">
+        <div class="flex flex-wrap items-center gap-1 border-b border-white/[0.06] bg-[#08090A] px-3 py-2">
+          <button onclick="selectBlueprintTab('duckdb')" id="bp-tab-duckdb" class="rounded px-3 py-1 font-mono text-xs bg-white/10 text-[#F7F8F8]">
+            core/db/duckdb_manager.py
+          </button>
+          <button onclick="selectBlueprintTab('fastapi')" id="bp-tab-fastapi" class="rounded px-3 py-1 font-mono text-xs text-[#8A8F98] hover:text-[#F7F8F8]">
+            core/main.py
+          </button>
+          <button onclick="selectBlueprintTab('compose')" id="bp-tab-compose" class="rounded px-3 py-1 font-mono text-xs text-[#8A8F98] hover:text-[#F7F8F8]">
+            docker-compose.yml
+          </button>
+        </div>
+        <pre id="bp-code-view" class="max-h-[420px] overflow-y-auto p-5 font-mono text-xs leading-relaxed text-[#8A8F98]"></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- MINIMAL LINEAR FOOTER                                                   -->
+  <!-- ======================================================================= -->
+  <footer class="border-t border-white/[0.06] bg-[#08090A]">
+    <div class="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 border-x border-white/[0.06] px-4 py-8 text-xs text-[#5E636E] sm:flex-row sm:px-10">
+      <div class="flex items-center gap-2.5">
+        <span class="font-medium text-[#F7F8F8]">TokenMesh</span>
+        <span>·</span>
+        <span>Apache License 2.0</span>
+        <span>·</span>
+        <span>DuckDB VSS + FastEmbed ONNX</span>
+      </div>
+      <div class="flex items-center gap-4 font-mono text-[11px]">
+        <button onclick="openCommandPalette()" class="hover:text-[#F7F8F8]">Command Palette (⌘K)</button>
+        <span>·</span>
+        <span id="footer-curr-status">Moeda: BRL (R$)</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ======================================================================= -->
+  <!-- APPLICATION LOGIC: I18N (PT/EN/ES) + MULTI-CURRENCY + SIMULATOR         -->
+  <!-- ======================================================================= -->
+  <script>
+    // =========================================================================
+    // 1. UNIVERSAL CURRENCY ENGINE (PRESETS + CUSTOM USER CURRENCY)
+    // =========================================================================
+    const CURRENCY_PRESETS = {
+      BRL: { code: 'BRL', symbol: 'R$', rate: 5.15, locale: 'pt-BR', name: 'Real Brasileiro' },
+      USD: { code: 'USD', symbol: '$', rate: 1.00, locale: 'en-US', name: 'US Dollar' },
+      EUR: { code: 'EUR', symbol: '€', rate: 0.92, locale: 'de-DE', name: 'Euro' },
+      GBP: { code: 'GBP', symbol: '£', rate: 0.79, locale: 'en-GB', name: 'British Pound' },
+      JPY: { code: 'JPY', symbol: '¥', rate: 154.50, locale: 'ja-JP', name: 'Japanese Yen' },
+      CAD: { code: 'CAD', symbol: 'C$', rate: 1.38, locale: 'en-CA', name: 'Canadian Dollar' },
+      CHF: { code: 'CHF', symbol: 'CHF', rate: 0.88, locale: 'de-CH', name: 'Swiss Franc' },
+      INR: { code: 'INR', symbol: '₹', rate: 84.10, locale: 'en-IN', name: 'Indian Rupee' },
+      MXN: { code: 'MXN', symbol: 'Mex$', rate: 19.80, locale: 'es-MX', name: 'Peso Mexicano' },
+      ARS: { code: 'ARS', symbol: 'ARS$', rate: 985.00, locale: 'es-AR', name: 'Peso Argentino' },
+      CLP: { code: 'CLP', symbol: 'CLP$', rate: 950.00, locale: 'es-CL', name: 'Peso Chileno' },
+      CUSTOM: { code: 'CUSTOM', symbol: '¤', rate: 1.00, locale: 'pt-BR', name: 'Personalizada' }
+    };
+
+    let activeCurrency = { ...CURRENCY_PRESETS.BRL };
+
+    function formatMoney(usdAmount, decimals = 0) {
+      const converted = usdAmount * activeCurrency.rate;
+      const formattedNum = new Intl.NumberFormat(activeCurrency.locale || 'pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      }).format(converted);
+      return `${activeCurrency.symbol} ${formattedNum}`;
     }
 
-    /* =======================================================
-       UPDATE UI
-       ======================================================= */
-    function updateUI(data) {
-      lastData = data;
-      const t = i18n[currentLang] || i18n["en"];
+    function renderCurrencyControls() {
+      // Top Navbar Label
+      document.getElementById('nav-currency-label').textContent = `${activeCurrency.symbol} ${activeCurrency.code}`;
+      document.getElementById('active-rate-pill').textContent = `${activeCurrency.rate} ${activeCurrency.code}`;
+      document.getElementById('footer-curr-status').textContent = `${activeCurrency.code} (${activeCurrency.symbol}) · 1 USD = ${activeCurrency.rate}`;
+      document.getElementById('ws-ledger-curr-tag').textContent = `${activeCurrency.code} (${activeCurrency.symbol})`;
 
-      // KPI values
-      const kpi = data.kpi || {};
-      $("#kpiRequests").textContent = fmtNumber(kpi.total_requests);
-      $("#kpiRequestsTrend").innerHTML = trendHTML(kpi.requests_trend);
+      // Sync Inputs
+      document.getElementById('custom-curr-code').value = activeCurrency.code;
+      document.getElementById('custom-curr-symbol').value = activeCurrency.symbol;
+      document.getElementById('custom-curr-rate').value = activeCurrency.rate;
 
-      const cacheRate = kpi.cache_hit_rate;
-      $("#kpiCacheRate").textContent = fmtPercent(cacheRate);
-      setRingProgress(cacheRate || 0);
-      $("#kpiCacheTrend").innerHTML = trendHTML(kpi.cache_trend);
+      document.getElementById('inline-curr-symbol').value = activeCurrency.symbol;
+      document.getElementById('inline-curr-rate').value = activeCurrency.rate;
+      document.getElementById('inline-curr-code-label').textContent = activeCurrency.code;
 
-      $("#kpiTokensSaved").textContent = fmtCompact(kpi.tokens_saved);
-      $("#kpiTokensTrend").innerHTML = trendHTML(kpi.tokens_trend);
+      // Render Popover Grid
+      const popoverGrid = document.getElementById('currency-preset-grid');
+      popoverGrid.innerHTML = Object.keys(CURRENCY_PRESETS).map(key => {
+        const c = CURRENCY_PRESETS[key];
+        const isSelected = activeCurrency.code === c.code;
+        return `
+          <button onclick="selectPresetCurrency('${key}')" class="rounded border px-2 py-1.5 font-mono text-[11px] transition ${
+            isSelected
+              ? 'border-white/30 bg-white/15 text-[#F7F8F8] font-medium'
+              : 'border-white/[0.06] bg-[#08090A] text-[#8A8F98] hover:text-[#F7F8F8]'
+          }">
+            ${c.code}
+          </button>
+        `;
+      }).join('');
 
-      $("#kpiMoneySaved").textContent = fmtMoney(kpi.money_saved);
-      $("#kpiMoneyTrend").innerHTML = trendHTML(kpi.money_trend);
+      // Render FinOps Section Bar
+      const finopsBar = document.getElementById('finops-currency-bar');
+      finopsBar.innerHTML = ['BRL', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'CHF', 'INR', 'MXN', 'CUSTOM'].map(key => {
+        const c = CURRENCY_PRESETS[key];
+        const isSelected = activeCurrency.code === c.code;
+        return `
+          <button onclick="selectPresetCurrency('${key}')" class="rounded px-2.5 py-1 font-mono text-[11px] transition ${
+            isSelected
+              ? 'bg-[#F7F8F8] text-[#08090A] font-medium shadow-sm'
+              : 'text-[#8A8F98] hover:bg-white/[0.05] hover:text-[#F7F8F8]'
+          }">
+            ${key === 'CUSTOM' ? '+ Custom' : `${c.symbol} ${c.code}`}
+          </button>
+        `;
+      }).join('');
 
-      // Chart
-      renderChart(data.daily_savings);
-
-      // Table
-      renderTable(data.recent_activity);
-
-      // Top Models
-      renderTopModels(data.top_models);
-
-      // Footer
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
-      $("#footerRefresh").textContent = `${t.refreshed} ${timeStr}`;
+      // Highlight Workspace Quick Currency Buttons
+      document.querySelectorAll('.curr-quick-btn').forEach(btn => {
+        if (btn.dataset.code === activeCurrency.code) {
+          btn.className = "curr-quick-btn rounded border border-white/30 bg-white/15 py-1 font-mono text-[10px] font-medium text-[#F7F8F8]";
+        } else {
+          btn.className = "curr-quick-btn rounded border border-white/10 bg-white/[0.04] py-1 font-mono text-[10px] text-[#8A8F98] hover:border-white/25";
+        }
+      });
     }
 
-    /* =======================================================
-       DEMO DATA (used when API is unavailable)
-       ======================================================= */
-    function generateDemoData() {
-      const now = Date.now();
-      const providers = ["OpenAI", "Anthropic", "Google", "Mistral", "Cohere"];
-      const models = [
-        "gpt-4o", "claude-sonnet-4-20250514", "gemini-2.0-flash",
-        "mistral-large", "command-r-plus", "gpt-4o-mini",
-        "claude-3-haiku", "gemini-1.5-pro"
-      ];
-
-      const dailySavings = [];
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(now - i * 86400000);
-        const dateStr = d.toISOString().slice(0, 10);
-        dailySavings.push({
-          date: dateStr,
-          amount: Math.round((Math.random() * 12 + 2) * 100) / 100
-        });
+    function selectPresetCurrency(key) {
+      if (key === 'CUSTOM') {
+        activeCurrency = {
+          code: 'CUSTOM',
+          symbol: document.getElementById('custom-curr-symbol').value || '¤',
+          rate: parseFloat(document.getElementById('custom-curr-rate').value) || 1.0,
+          locale: 'pt-BR'
+        };
+        document.getElementById('inline-curr-symbol').focus();
+      } else if (CURRENCY_PRESETS[key]) {
+        activeCurrency = { ...CURRENCY_PRESETS[key] };
       }
+      renderCurrencyControls();
+      refreshAllMonetaryDisplays();
+    }
 
-      const recentActivity = [];
-      for (let i = 0; i < 12; i++) {
-        const provider = providers[Math.floor(Math.random() * providers.length)];
-        const model = models[Math.floor(Math.random() * models.length)];
-        const tokensOriginal = Math.floor(Math.random() * 4000 + 500);
-        const cacheHit = Math.random() > 0.4;
-        const tokensSent = cacheHit ? Math.floor(tokensOriginal * 0.15) : tokensOriginal;
-        recentActivity.push({
-          timestamp: new Date(now - i * 120000).toISOString(),
-          provider,
-          model,
-          tokens_original: tokensOriginal,
-          tokens_sent: tokensSent,
-          cost: Math.round(tokensSent * 0.003 * 100) / 100,
-          cache_hit: cacheHit,
-          dlp_redactions: Math.random() > 0.7 ? Math.floor(Math.random() * 5 + 1) : 0
-        });
+    function applyCustomCurrencyMeta() {
+      const code = (document.getElementById('custom-curr-code').value || 'CUR').toUpperCase();
+      const sym = document.getElementById('custom-curr-symbol').value || '$';
+      activeCurrency.code = code;
+      activeCurrency.symbol = sym;
+      renderCurrencyControls();
+      refreshAllMonetaryDisplays();
+    }
+
+    function updateCustomExchangeRate(val) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed > 0) {
+        activeCurrency.rate = parsed;
+        renderCurrencyControls();
+        refreshAllMonetaryDisplays();
       }
+    }
 
-      const modelCounts = {};
-      recentActivity.forEach((a) => {
-        modelCounts[a.model] = (modelCounts[a.model] || 0) + 1;
+    function syncInlineCurrencyEdit() {
+      const sym = document.getElementById('inline-curr-symbol').value || '$';
+      activeCurrency.symbol = sym;
+      activeCurrency.code = 'CUSTOM';
+      renderCurrencyControls();
+      refreshAllMonetaryDisplays();
+    }
+
+    function syncInlineRateEdit(val) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed > 0) {
+        activeCurrency.rate = parsed;
+        renderCurrencyControls();
+        refreshAllMonetaryDisplays();
+      }
+    }
+
+    function toggleCurrencyPopover(e) {
+      e.stopPropagation();
+      const pop = document.getElementById('currency-popover');
+      pop.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', () => {
+      const pop = document.getElementById('currency-popover');
+      if (pop && !pop.classList.contains('hidden')) {
+        pop.classList.add('hidden');
+      }
+    });
+
+    // =========================================================================
+    // 2. MULTI-LANGUAGE I18N ENGINE (PT-BR DEFAULT, EN, ES)
+    // =========================================================================
+    const I18N = {
+      pt: {
+        nav_console: "Console ao Vivo",
+        nav_finops: "Simulador FinOps",
+        nav_arch: "Arquitetura",
+        nav_code: "Código & DuckDB",
+        nav_cmd: "Comandos",
+        curr_popover_title: "Moeda de Exibição FinOps",
+        curr_code_label: "Código (ex: BRL, BTC)",
+        curr_sym_label: "Símbolo (ex: R$, €)",
+        curr_rate_label: "Taxa de Conversão (1 USD =)",
+        hero_pill: "TokenMesh 0.1 · Motor DuckDB VSS HNSW + FastEmbed Local",
+        hero_title: "Construído para cortar custos de LLM em escala.",
+        hero_subtitle: "O TokenMesh é um proxy reverso open-source (Apache 2.0) que intercepta chamadas de SDKs da OpenAI, Anthropic e Cursor. Une cache semântico local sub-2ms via DuckDB HNSW, compressão heurística e mascaramento de dados sensíveis em um único arquivo embutido.",
+        hero_cta_primary: "Simular economia na sua moeda",
+        hero_strip_saved: "Economia média (1.5M reqs/mês):",
+        ws_session_saved: "Economia na Sessão:",
+        ws_presets_title: "Cenários de Teste (/v1/chat)",
+        scen_0_title: "1. Query SQL DuckDB HNSW",
+        scen_1_title: "2. Vazamento CPF + API Key",
+        scen_2_title: "3. Contexto RAG Redundante",
+        ws_threshold_label: "Limiar Cosseno HNSW",
+        ws_dlp_toggle: "DLP Local (CPF/CNPJ/Keys)",
+        ws_comp_toggle: "Compressão Heurística",
+        ws_curr_quick: "Moeda Ativa no Console",
+        ws_btn_miss: "1. Enviar Original (MISS)",
+        ws_btn_hit: "2. Testar Prompt Similar (Cache HIT)",
+        ws_step4_label: "04 · ECONOMIA REQUEST",
+        ws_sanitized_title: "Payload Normalizado & Sanitizado (DLP)",
+        th_saved_curr: "economia_convertida",
+        finops_eyebrow: "01 · Motor FinOps Multimoeda",
+        finops_title: "Simule sua economia em qualquer moeda ou câmbio corporativo.",
+        finops_desc: "Converta instantaneamente para Real (R$), Dólar (US$), Euro (€), Libra (£), Iene (¥) ou defina sua própria moeda e cotação (ex: PTAX + IOF).",
+        finops_choose_curr: "Converter para:",
+        finops_sym_inline: "Símbolo:",
+        calc_req_label: "Volume Mensal de Requisições LLM",
+        calc_tok_label: "Média de Tokens por Requisição (Contexto + Saída)",
+        calc_hit_label: "Taxa de Cache Semântico (DuckDB HNSW)",
+        calc_comp_label: "Redução por Compressão Heurística (em Cache Miss)",
+        calc_model_label: "Modelo LLM Principal (Preço Base USD / 1K Tokens):",
+        roi_annual_label: "Economia Anual Projetada",
+        roi_monthly_label: "Economia Mensal:",
+        roi_raw_cost_label: "Sem TokenMesh (API Bruta + Redis/Vector Cloud)",
+        roi_mesh_cost_label: "Com TokenMesh (DuckDB Embutido + Cache + Compressão)",
+        roi_tokens_eliminated: "Tokens Poupados / Mês:",
+        roi_infra_avoided: "Infra Cloud Evitada (Pinecone + Redis):",
+        roi_embed_cost: "Custo de Vetorização (FastEmbed CPU):",
+        roi_copy_report: "Copiar Relatório Executivo FinOps",
+        arch_eyebrow: "02 · Engenharia Zero-Infra",
+        arch_title: "Toda a pilha de gateway colapsada em um único arquivo DuckDB.",
+        bento1_title: "Busca Vetorial In-Process Sub-Milissegundo",
+        bento1_desc: "Esqueça clusters externos de Redis ou Qdrant. O TokenMesh armazena vetores FLOAT[384] com índices HNSW persistidos diretamente no arquivo tokenmesh.duckdb, eliminando saltos de rede.",
+        bento2_title: "Sanitização Automática de PII (LGPD)",
+        bento2_desc: "Mascara CPF, CNPJ, cartões de crédito, e-mails corporativos e chaves sk-* localmente antes do prompt sair da sua rede privada.",
+        bento3_title: "Vetorização em CPU Não-Bloqueante",
+        bento3_desc: "Executa o modelo BAAI/bge-small-en-v1.5 via ONNX Runtime isolado em asyncio.to_thread, garantindo que o event loop do FastAPI nunca trave.",
+        bento4_title: "Compatível com qualquer SDK OpenAI ou Anthropic",
+        code_eyebrow: "03 · Código Fonte & Governança Apache 2.0",
+        code_title: "Inspecione o motor DuckDB HNSW e o Proxy FastAPI.",
+        code_copy_btn: "Copiar Arquivo",
+        per_month: "/ mês",
+        per_year: "/ ano"
+      },
+      en: {
+        nav_console: "Live Console",
+        nav_finops: "FinOps Simulator",
+        nav_arch: "Architecture",
+        nav_code: "Code & DuckDB",
+        nav_cmd: "Commands",
+        curr_popover_title: "FinOps Display Currency",
+        curr_code_label: "Code (e.g. USD, BRL)",
+        curr_sym_label: "Symbol (e.g. $, R$)",
+        curr_rate_label: "Exchange Rate (1 USD =)",
+        hero_pill: "TokenMesh 0.1 · Embedded DuckDB VSS HNSW + Local FastEmbed",
+        hero_title: "Purpose-built to slash LLM API costs at scale.",
+        hero_subtitle: "TokenMesh is an open-source (Apache 2.0) reverse proxy sitting between OpenAI, Anthropic, and Cursor SDKs. It unifies sub-2ms DuckDB HNSW semantic caching, heuristic prompt compression, and local PII redaction in a single file.",
+        hero_cta_primary: "Simulate savings in your currency",
+        hero_strip_saved: "Avg savings (1.5M reqs/mo):",
+        ws_session_saved: "Session Saved:",
+        ws_presets_title: "Test Scenarios (/v1/chat)",
+        scen_0_title: "1. DuckDB HNSW SQL Query",
+        scen_1_title: "2. PII Leak (CPF + API Key)",
+        scen_2_title: "3. Verbose RAG Context",
+        ws_threshold_label: "HNSW Cosine Threshold",
+        ws_dlp_toggle: "Local DLP (PII / API Keys)",
+        ws_comp_toggle: "Heuristic Compression",
+        ws_curr_quick: "Active Console Currency",
+        ws_btn_miss: "1. Send Original (MISS)",
+        ws_btn_hit: "2. Test Similar Prompt (Cache HIT)",
+        ws_step4_label: "04 · REQUEST SAVED",
+        ws_sanitized_title: "Normalized & Sanitized Payload (DLP)",
+        th_saved_curr: "converted_savings",
+        finops_eyebrow: "01 · Multi-Currency FinOps Engine",
+        finops_title: "Simulate your savings in any currency or corporate rate.",
+        finops_desc: "Convert instantly between BRL (R$), USD ($), EUR (€), GBP (£), JPY (¥), or enter your own custom currency symbol and exchange rate.",
+        finops_choose_curr: "Convert to:",
+        finops_sym_inline: "Symbol:",
+        calc_req_label: "Monthly LLM Request Volume",
+        calc_tok_label: "Avg Tokens per Request (Prompt + Completion)",
+        calc_hit_label: "Semantic Cache Hit Rate (DuckDB HNSW)",
+        calc_comp_label: "Heuristic Compression Savings (on Cache Miss)",
+        calc_model_label: "Primary Upstream LLM (Base USD / 1K Tokens):",
+        roi_annual_label: "Projected Annual Savings",
+        roi_monthly_label: "Monthly Savings:",
+        roi_raw_cost_label: "Without TokenMesh (Raw API + Managed Redis/Vector DB)",
+        roi_mesh_cost_label: "With TokenMesh (Embedded DuckDB + Cache + Compression)",
+        roi_tokens_eliminated: "Tokens Eliminated / Month:",
+        roi_infra_avoided: "Cloud Infra Avoided (Pinecone + Redis):",
+        roi_embed_cost: "Embedding Cost (FastEmbed CPU):",
+        roi_copy_report: "Copy Executive FinOps Summary",
+        arch_eyebrow: "02 · Zero-Infra Engineering",
+        arch_title: "The entire AI gateway stack collapsed into one DuckDB file.",
+        bento1_title: "Sub-Millisecond In-Process Vector Search",
+        bento1_desc: "Forget external Redis or Qdrant clusters. TokenMesh stores FLOAT[384] vectors with persistent HNSW indexes directly inside tokenmesh.duckdb, eliminating network hops.",
+        bento2_title: "Automated Local PII Scrubbing",
+        bento2_desc: "Redacts SSN, Brazilian CPF/CNPJ, credit cards, emails, and sk-* API keys on-CPU before any payload leaves your private network.",
+        bento3_title: "Non-Blocking CPU ONNX Vectorization",
+        bento3_desc: "Runs BAAI/bge-small-en-v1.5 via ONNX Runtime inside asyncio.to_thread so the FastAPI event loop never blocks under load.",
+        bento4_title: "Drop-in compatible with OpenAI & Anthropic SDKs",
+        code_eyebrow: "03 · Source Code & Apache 2.0 Governance",
+        code_title: "Inspect the DuckDB HNSW engine and FastAPI Proxy.",
+        code_copy_btn: "Copy File",
+        per_month: "/ mo",
+        per_year: "/ yr"
+      },
+      es: {
+        nav_console: "Consola en Vivo",
+        nav_finops: "Simulador FinOps",
+        nav_arch: "Arquitectura",
+        nav_code: "Código y DuckDB",
+        nav_cmd: "Comandos",
+        curr_popover_title: "Moneda de Visualización FinOps",
+        curr_code_label: "Código (ej: EUR, MXN)",
+        curr_sym_label: "Símbolo (ej: €, $)",
+        curr_rate_label: "Tasa de Cambio (1 USD =)",
+        hero_pill: "TokenMesh 0.1 · Motor DuckDB VSS HNSW + FastEmbed Local",
+        hero_title: "Diseñado para reducir costos de LLM a escala.",
+        hero_subtitle: "TokenMesh es un proxy inverso open-source (Apache 2.0) entre tus SDKs de OpenAI, Anthropic y Cursor. Une caché semántico local sub-2ms vía DuckDB HNSW, compresión heurística y enmascaramiento DLP en un solo archivo.",
+        hero_cta_primary: "Simular ahorro en tu moneda",
+        hero_strip_saved: "Ahorro medio (1.5M reqs/mes):",
+        ws_session_saved: "Ahorro en Sesión:",
+        ws_presets_title: "Escenarios de Prueba (/v1/chat)",
+        scen_0_title: "1. Consulta SQL DuckDB HNSW",
+        scen_1_title: "2. Fuga de PII (CPF + API Key)",
+        scen_2_title: "3. Contexto RAG Redundante",
+        ws_threshold_label: "Umbral Coseno HNSW",
+        ws_dlp_toggle: "DLP Local (PII / Claves API)",
+        ws_comp_toggle: "Compresión Heurística",
+        ws_curr_quick: "Moneda Activa en Consola",
+        ws_btn_miss: "1. Enviar Original (MISS)",
+        ws_btn_hit: "2. Probar Prompt Similar (Cache HIT)",
+        ws_step4_label: "04 · AHORRO POR REQUEST",
+        ws_sanitized_title: "Payload Normalizado y Sanitizado (DLP)",
+        th_saved_curr: "ahorro_convertido",
+        finops_eyebrow: "01 · Motor FinOps Multimoneda",
+        finops_title: "Simula tu ahorro en cualquier moneda o tipo de cambio.",
+        finops_desc: "Convierte al instante a Real (R$), Dólar (US$), Euro (€), Peso (MXN/ARS/CLP) o define tu propio símbolo y tasa de cambio corporativa.",
+        finops_choose_curr: "Convertir a:",
+        finops_sym_inline: "Símbolo:",
+        calc_req_label: "Volumen Mensual de Peticiones LLM",
+        calc_tok_label: "Promedio de Tokens por Petición",
+        calc_hit_label: "Tasa de Caché Semántico (DuckDB HNSW)",
+        calc_comp_label: "Reducción por Compresión Heurística (en Miss)",
+        calc_model_label: "Modelo LLM Principal (Base USD / 1K Tokens):",
+        roi_annual_label: "Ahorro Anual Proyectado",
+        roi_monthly_label: "Ahorro Mensual:",
+        roi_raw_cost_label: "Sin TokenMesh (API Bruta + Redis/Vector Cloud)",
+        roi_mesh_cost_label: "Con TokenMesh (DuckDB Embebido + Caché + Compresión)",
+        roi_tokens_eliminated: "Tokens Ahorrados / Mes:",
+        roi_infra_avoided: "Infra Cloud Evitada (Pinecone + Redis):",
+        roi_embed_cost: "Costo de Vectorización (FastEmbed CPU):",
+        roi_copy_report: "Copiar Resumen Ejecutivo FinOps",
+        arch_eyebrow: "02 · Ingeniería Zero-Infra",
+        arch_title: "Toda la pila de gateway colapsada en un único archivo DuckDB.",
+        bento1_title: "Búsqueda Vectorial In-Process Sub-Milisegundo",
+        bento1_desc: "Olvida clústeres externos de Redis o Qdrant. TokenMesh almacena vectores FLOAT[384] con índices HNSW persistidos directamente en tokenmesh.duckdb.",
+        bento2_title: "Sanitización Automática de PII",
+        bento2_desc: "Enmascara documentos, tarjetas, correos y claves sk-* localmente antes de que el prompt salga de tu red privada.",
+        bento3_title: "Vectorización ONNX en CPU No Bloqueante",
+        bento3_desc: "Ejecuta BAAI/bge-small-en-v1.5 vía ONNX Runtime en asyncio.to_thread sin bloquear el event loop de FastAPI.",
+        bento4_title: "Compatible con cualquier SDK de OpenAI o Anthropic",
+        code_eyebrow: "03 · Código Fuente y Gobernanza Apache 2.0",
+        code_title: "Inspecciona el motor DuckDB HNSW y el Proxy FastAPI.",
+        code_copy_btn: "Copiar Archivo",
+        per_month: "/ mes",
+        per_year: "/ año"
+      }
+    };
+
+    let currentLang = 'pt';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang;
+
+      ['pt', 'en', 'es'].forEach(l => {
+        const btn = document.getElementById('lang-btn-' + l);
+        if (l === lang) {
+          btn.className = "rounded px-2 py-0.5 transition bg-white/10 text-[#F7F8F8]";
+        } else {
+          btn.className = "rounded px-2 py-0.5 transition text-[#8A8F98] hover:text-[#F7F8F8]";
+        }
       });
 
-      const topModels = Object.entries(modelCounts)
-        .map(([model, count]) => ({ model, count: count * Math.floor(Math.random() * 100 + 50) }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      const dict = I18N[lang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+          el.textContent = dict[key];
+        }
+      });
 
-      const totalRequests = Math.floor(Math.random() * 50000 + 10000);
-      const tokensSaved = Math.floor(Math.random() * 2000000 + 500000);
-      const totalSaved = dailySavings.reduce((s, d) => s + d.amount, 0);
-
-      return {
-        kpi: {
-          total_requests: totalRequests,
-          requests_trend: +(Math.random() * 20 - 5).toFixed(1),
-          cache_hit_rate: +(Math.random() * 40 + 55).toFixed(1),
-          cache_trend: +(Math.random() * 10 - 2).toFixed(1),
-          tokens_saved: tokensSaved,
-          tokens_trend: +(Math.random() * 30).toFixed(1),
-          money_saved: Math.round(totalSaved * 100) / 100,
-          money_trend: +(Math.random() * 15).toFixed(1)
-        },
-        daily_savings: dailySavings,
-        recent_activity: recentActivity,
-        top_models: topModels
-      };
+      // Update scenario prompt text for the selected language
+      loadScenarioPromptForLanguage();
+      refreshAllMonetaryDisplays();
     }
 
-    /* =======================================================
-       FETCH DASHBOARD DATA
-       ======================================================= */
-    async function fetchDashboardData() {
-      let url = `/v1/analytics/summary?currency=${encodeURIComponent(currentCurrency)}`;
-      if (currentCurrency === "CUSTOM") {
-        url += `&custom_symbol=${encodeURIComponent(customSymbol)}&custom_rate=${encodeURIComponent(customRate)}`;
+    // =========================================================================
+    // 3. WORKSPACE LIVE SEMANTIC PROXY SIMULATOR
+    // =========================================================================
+    const WORKSPACE_SCENARIOS = [
+      {
+        pt: {
+          original: "Por favor, você poderia gentilmente me mostrar como criar um índice HNSW de similaridade de cosseno no DuckDB usando a extensão VSS?",
+          similar: "Qual o comando SQL para criar um índice vetorial HNSW com métrica cosseno no DuckDB VSS?",
+          answer: "INSTALL vss; LOAD vss; SET hnsw_enable_experimental_persistence = true;\nCREATE INDEX idx_hnsw ON semantic_cache USING HNSW (embedding) WITH (metric = 'cosine');"
+        },
+        en: {
+          original: "Please can you kindly explain how do I create an HNSW cosine similarity index in DuckDB using the VSS extension?",
+          similar: "Show me the SQL command to build a cosine HNSW vector index on DuckDB with vss.",
+          answer: "INSTALL vss; LOAD vss; SET hnsw_enable_experimental_persistence = true;\nCREATE INDEX idx_hnsw ON semantic_cache USING HNSW (embedding) WITH (metric = 'cosine');"
+        },
+        es: {
+          original: "Por favor, ¿podrías explicarme amablemente cómo crear un índice HNSW de similitud coseno en DuckDB usando la extensión VSS?",
+          similar: "Muéstrame el comando SQL para crear un índice vectorial HNSW coseno en DuckDB con vss.",
+          answer: "INSTALL vss; LOAD vss; SET hnsw_enable_experimental_persistence = true;\nCREATE INDEX idx_hnsw ON semantic_cache USING HNSW (embedding) WITH (metric = 'cosine');"
+        },
+        similarity: 0.9684,
+        savedTokensOnHit: 720
+      },
+      {
+        pt: {
+          original: "Por favor, você poderia gentilmente analisar o erro de pagamento do cliente CPF 123.456.789-00 (email: diretoria@empresa.com.br) usando a chave sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          similar: "Por que falhou o webhook do cliente CPF 123.456.789-00 (diretoria@empresa.com.br) com a token sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          answer: "Falha identificada no timeout de TLS upstream. Nota: 3 entidades sensíveis ([REDACTED_CPF], [REDACTED_EMAIL], [REDACTED_API_KEY]) foram mascaradas localmente pelo DLP."
+        },
+        en: {
+          original: "Please can you kindly debug this payment webhook failure for user CPF 123.456.789-00 (email: billing@fintech.io) using key sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          similar: "Why did the webhook fail for customer CPF 123.456.789-00 (billing@fintech.io) with key sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          answer: "Upstream TLS handshake timed out. Note: 3 sensitive PII entities ([REDACTED_CPF], [REDACTED_EMAIL], [REDACTED_API_KEY]) were scrubbed locally before leaving your VPC."
+        },
+        es: {
+          original: "Por favor, ¿podrías depurar el fallo del webhook para el cliente CPF 123.456.789-00 (email: pagos@fintech.es) usando la clave sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          similar: "¿Por qué falló el webhook del cliente CPF 123.456.789-00 (pagos@fintech.es) con token sk-proj-99a8b7c6d5e4f3a2b1c0?",
+          answer: "Timeout de TLS detectado. Nota: 3 entidades sensibles ([REDACTED_CPF], [REDACTED_EMAIL], [REDACTED_API_KEY]) fueron enmascaradas localmente."
+        },
+        similarity: 0.9742,
+        savedTokensOnHit: 940
+      },
+      {
+        pt: {
+          original: "Eu ficaria muito agradecido se você pudesse resumir detalhadamente as vantagens de usar o DuckDB embutido em vez de manter um cluster Redis externo para cache de IA.",
+          similar: "Quais os benefícios arquiteturais do DuckDB embutido contra Redis externo para cache semântico de LLMs?",
+          answer: "O DuckDB embutido elimina latência de rede TCP, oferece busca vetorial HNSW nativa via extensão VSS e grava telemetria colunar FinOps no mesmo arquivo."
+        },
+        en: {
+          original: "I would really appreciate it if you could summarize the architectural advantages of embedded DuckDB over external Redis clusters for AI caching.",
+          similar: "What are the main benefits of embedded DuckDB vs Redis for local LLM semantic caching?",
+          answer: "Embedded DuckDB eliminates TCP network overhead, provides native HNSW vector search via VSS, and stores columnar FinOps analytics in a single file."
+        },
+        es: {
+          original: "Agradecería mucho si pudieras resumir las ventajas arquitectónicas de DuckDB embebido frente a Redis externo para caché semántico.",
+          similar: "¿Cuáles son los beneficios principales de DuckDB embebido vs Redis para caché semántico de LLMs?",
+          answer: "DuckDB embebido elimina saltos de red TCP, ofrece búsqueda HNSW nativa vía VSS y guarda analítica colunar FinOps en el mismo archivo."
+        },
+        similarity: 0.9580,
+        savedTokensOnHit: 810
       }
+    ];
+
+    let activeWsScenario = 0;
+    let lastWsMode = 'HIT';
+    let sessionSavedUsd = 2877.75;
+    let ledgerEvents = [
+      { id: 'evt_91a4f2', hit: true, sim: 0.9684, tokens: 720, usdSaved: 0.0054, latency: '1.8 ms' },
+      { id: 'evt_7c30e1', hit: true, sim: 0.9742, tokens: 940, usdSaved: 0.0071, latency: '2.1 ms' },
+      { id: 'evt_2b88d0', hit: false, sim: 0.0000, tokens: 68, usdSaved: 0.0005, latency: '612.4 ms' }
+    ];
+
+    function selectWorkspaceScenario(idx) {
+      activeWsScenario = idx;
+      [0, 1, 2].forEach(i => {
+        const btn = document.getElementById('ws-scen-' + i);
+        if (i === idx) {
+          btn.className = "flex w-full items-center justify-between rounded-md bg-white/[0.07] px-2.5 py-2 text-left text-xs font-medium text-[#F7F8F8] transition";
+        } else {
+          btn.className = "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-[#8A8F98] transition hover:bg-white/[0.04] hover:text-[#F7F8F8]";
+        }
+      });
+      loadScenarioPromptForLanguage();
+      runWorkspaceSimulation('HIT', true);
+    }
+
+    function loadScenarioPromptForLanguage() {
+      const scen = WORKSPACE_SCENARIOS[activeWsScenario][currentLang];
+      const textarea = document.getElementById('ws-prompt-textarea');
+      textarea.value = lastWsMode === 'MISS' ? scen.original : scen.similar;
+    }
+
+    function updateWorkspaceThreshold(val) {
+      document.getElementById('ws-threshold-val').textContent = parseFloat(val).toFixed(2);
+      runWorkspaceSimulation(lastWsMode, true);
+    }
+
+    function processDlpAndCompression(raw, enableDlp, enableComp) {
+      let text = raw;
+      let piiCount = 0;
+      if (enableDlp) {
+        const rules = [
+          { tag: '[REDACTED_API_KEY]', rx: /\b(sk-[a-zA-Z0-9_-]{10,}|ghp_[a-zA-Z0-9]{12,})\b/g },
+          { tag: '[REDACTED_CPF]', rx: /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g },
+          { tag: '[REDACTED_CNPJ]', rx: /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g },
+          { tag: '[REDACTED_EMAIL]', rx: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g }
+        ];
+        rules.forEach(r => {
+          const m = text.match(r.rx);
+          if (m) piiCount += m.length;
+          text = text.replace(r.rx, r.tag);
+        });
+      }
+      if (enableComp) {
+        text = text.replace(/\b(por favor,?\s*você poderia gentilmente|eu ficaria muito agradecido se você pudesse|please can you kindly|i would really appreciate it if you could|por favor,?\s*¿podrías explicarme amablemente|agradecería mucho si pudieras)\b/gi, '');
+        text = text.replace(/\s+/g, ' ').trim();
+      }
+      return { clean: text, piiCount };
+    }
+
+    async function runWorkspaceSimulation(mode, preserveInput = false) {
+      lastWsMode = mode;
+      const scenObj = WORKSPACE_SCENARIOS[activeWsScenario];
+      const scenLang = scenObj[currentLang];
+      const textarea = document.getElementById('ws-prompt-textarea');
+
+      if (!preserveInput) {
+        textarea.value = mode === 'MISS' ? scenLang.original : scenLang.similar;
+      }
+
+      const rawText = textarea.value;
+      const threshold = parseFloat(document.getElementById('ws-threshold-slider').value);
+      const useDlp = document.getElementById('ws-dlp-check').checked;
+      const useComp = document.getElementById('ws-comp-check').checked;
+
+      // Local optimistic calculation for instant preview
+      const { clean: localClean, piiCount: localPii } = processDlpAndCompression(rawText, useDlp, useComp);
+      const origTok = Math.max(10, Math.ceil(rawText.length / 3.7));
+
+      let clean = localClean;
+      let piiCount = localPii;
+      let isHit = false;
+      let simScore = 0.0;
+      let latency = "1.8";
+      let tokensSavedTotal = 0;
+      let usdSavedReq = 0.0;
+      let answerContent = scenLang.answer;
+      let liveHeaders = {};
 
       try {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        updateUI(data);
+        const t0 = performance.now();
+        const resp = await fetch('/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-demo-live-playground',
+            'X-TokenMesh-Inspect': 'true',
+            'X-TokenMesh-DLP': String(useDlp),
+            'X-TokenMesh-Compression': String(useComp),
+            'X-TokenMesh-Threshold': String(threshold)
+          },
+          body: JSON.stringify({
+            model: selectedModelName || 'gpt-4o',
+            messages: [{ role: 'user', content: rawText }]
+          })
+        });
+
+        const elapsedMs = performance.now() - t0;
+        if (resp.ok) {
+          const data = await resp.json();
+          isHit = resp.headers.get('X-TokenMesh-Cache') === 'HIT';
+          simScore = parseFloat(resp.headers.get('X-TokenMesh-Similarity') || '0.0');
+          tokensSavedTotal = parseInt(resp.headers.get('X-TokenMesh-Tokens-Saved') || '0', 10);
+          const rawLat = parseFloat(resp.headers.get('X-TokenMesh-Latency-Ms') || String(elapsedMs));
+          latency = (rawLat > 0 ? rawLat : elapsedMs).toFixed(1);
+          piiCount = parseInt(resp.headers.get('X-TokenMesh-DLP-Redactions') || String(localPii), 10);
+          usdSavedReq = parseFloat(resp.headers.get('X-TokenMesh-Saved-USD') || '0.0');
+
+          if (data._tokenmesh) {
+            clean = data._tokenmesh.sanitized_text || clean;
+          }
+          if (data.choices && data.choices[0] && data.choices[0].message) {
+            answerContent = data.choices[0].message.content;
+          }
+          liveHeaders = {
+            'X-TokenMesh-Cache': isHit ? 'HIT' : 'MISS',
+            'X-TokenMesh-Similarity': simScore.toFixed(4),
+            'X-TokenMesh-Tokens-Saved': tokensSavedTotal,
+            'X-TokenMesh-Saved-USD': usdSavedReq.toFixed(6),
+            'X-TokenMesh-DLP-Redactions': piiCount,
+            'X-TokenMesh-Latency-Ms': latency
+          };
+        } else {
+          throw new Error('API ' + resp.status);
+        }
       } catch (err) {
-        console.warn("Dashboard API unavailable, using demo data:", err.message);
-        updateUI(generateDemoData());
+        // Fallback to client-side simulation when backend is offline
+        simScore = mode === 'MISS' ? 0.0 : scenObj.similarity;
+        isHit = mode === 'HIT' && simScore >= threshold;
+        latency = isHit ? (1.6 + Math.random() * 0.7).toFixed(1) : (580 + Math.random() * 90).toFixed(1);
+        const compSaved = Math.max(0, origTok - Math.ceil(clean.length / 3.7));
+        tokensSavedTotal = isHit ? scenObj.savedTokensOnHit : compSaved;
+        usdSavedReq = (tokensSavedTotal / 1000) * 0.0075;
+        liveHeaders = {
+          'X-TokenMesh-Cache': isHit ? 'HIT' : 'MISS',
+          'X-TokenMesh-Similarity': simScore.toFixed(4),
+          'X-TokenMesh-Tokens-Saved': tokensSavedTotal,
+          'X-TokenMesh-Latency-Ms': latency
+        };
+      }
+
+      const cleanTok = Math.max(7, Math.ceil(clean.length / 3.7));
+      const compSaved = Math.max(0, origTok - cleanTok);
+      const pctComp = Math.round((compSaved / origTok) * 100);
+
+      // Update 4-step matrix
+      document.getElementById('ws-step-1').textContent = `-${pctComp}% tok (${piiCount} PII)`;
+      document.getElementById('ws-step-2').textContent = `FLOAT[384] • 0.8ms`;
+      const step3El = document.getElementById('ws-step-3');
+      if (isHit) {
+        step3El.textContent = `cos_sim: ${simScore.toFixed(4)}`;
+        step3El.className = 'mt-1 font-mono text-xs font-medium text-[#4CB782] tabular-nums';
+      } else {
+        step3El.textContent = mode === 'MISS' ? `HNSW INSERT` : `sim ${simScore.toFixed(2)} < ${threshold}`;
+        step3El.className = 'mt-1 font-mono text-xs font-medium text-[#F2994A] tabular-nums';
+      }
+
+      document.getElementById('ws-step-4').textContent = `${formatMoney(usdSavedReq, 4)} (${tokensSavedTotal} tok)`;
+
+      // Sanitized Output
+      document.getElementById('ws-sanitized-text').textContent = clean;
+      const dlpPill = document.getElementById('ws-dlp-pill');
+      dlpPill.textContent = `${piiCount} PII Redacted`;
+      dlpPill.className = piiCount > 0
+        ? 'rounded bg-[#EB5757]/15 px-1.5 py-0.5 font-mono text-[10px] text-[#EB5757]'
+        : 'rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-[#8A8F98]';
+
+      // HTTP Response Preview
+      const hitBadge = document.getElementById('ws-hit-badge');
+      if (isHit) {
+        hitBadge.textContent = `X-Cache: HIT • ${latency}ms`;
+        hitBadge.className = 'rounded px-1.5 py-0.5 font-mono text-[10px] font-medium bg-[#4CB782]/15 text-[#4CB782]';
+      } else {
+        hitBadge.textContent = `X-Cache: MISS • ${latency}ms`;
+        hitBadge.className = 'rounded px-1.5 py-0.5 font-mono text-[10px] font-medium bg-[#F2994A]/15 text-[#F2994A]';
+      }
+
+      const headersFormatted = Object.entries(liveHeaders).map(([k, v]) => `${k}: ${v}`).join('\n');
+      document.getElementById('ws-http-preview').textContent =
+`HTTP/1.1 200 OK
+${headersFormatted}
+
+{ "content": ${JSON.stringify(answerContent.slice(0, 96) + '...')} }`;
+
+      if (!preserveInput) {
+        sessionSavedUsd += (usdSavedReq || 0.005) * 120;
+        loadLiveLedger();
+      }
+
+      renderWorkspaceLedger();
+    }
+
+        async function loadLiveLedger() {
+      try {
+        const resp = await fetch('/v1/analytics/events?limit=4');
+        if (resp.ok) {
+          const events = await resp.json();
+          if (Array.isArray(events) && events.length > 0) {
+            ledgerEvents = events.map(ev => ({
+              id: ev.id ? ev.id.slice(0, 10) : 'evt_' + Math.random().toString(16).slice(2, 8),
+              hit: Boolean(ev.cache_hit),
+              sim: parseFloat(ev.similarity || 0),
+              tokens: parseInt(ev.tokens_saved || 0, 10),
+              usdSaved: parseFloat(ev.saved_usd || 0),
+              latency: `${parseFloat(ev.latency_ms || 0).toFixed(1)} ms`
+            }));
+            renderWorkspaceLedger();
+          }
+        }
+      } catch (e) {
+        // Keep local ledger on error
       }
     }
 
-    /* =======================================================
-       EVENT LISTENERS
-       ======================================================= */
-    langSelect.addEventListener("change", (e) => {
-      switchLanguage(e.target.value);
-    });
+    function renderWorkspaceLedger() {
+      document.getElementById('ws-session-saved-val').textContent = formatMoney(sessionSavedUsd, 2);
+      const tbody = document.getElementById('ws-ledger-tbody');
+      tbody.innerHTML = ledgerEvents.map(ev => `
+        <tr>
+          <td class="py-1.5 pr-3 text-[#F7F8F8]">${ev.id}</td>
+          <td class="py-1.5 pr-3">
+            <span class="rounded px-1.5 py-0.5 text-[10px] ${ev.hit ? 'bg-[#4CB782]/15 text-[#4CB782]' : 'bg-[#F2994A]/15 text-[#F2994A]'}">
+              ${ev.hit ? 'HIT' : 'MISS'}
+            </span>
+          </td>
+          <td class="py-1.5 pr-3">${ev.sim.toFixed(4)}</td>
+          <td class="py-1.5 pr-3">+${ev.tokens} tok</td>
+          <td class="py-1.5 pr-3 text-[#4CB782] font-medium">${formatMoney(ev.usdSaved, 4)}</td>
+          <td class="py-1.5 text-right text-[#F7F8F8]">${ev.latency}</td>
+        </tr>
+      `).join('');
+    }
 
-    currencySelect.addEventListener("change", (e) => {
-      switchCurrency(e.target.value);
-    });
+    // =========================================================================
+    // 4. FINOPS ROI MULTI-CURRENCY CALCULATOR
+    // =========================================================================
+    let selectedModelUsdPer1K = 0.0065;
+    let selectedModelName = 'gpt-4o';
 
-    customCancelBtn.addEventListener("click", () => {
-      customPanel.classList.remove("visible");
-      currencySelect.value = currentCurrency === "CUSTOM" ? "CUSTOM" : currentCurrency;
-    });
-
-    customApplyBtn.addEventListener("click", () => {
-      const sym = $("#customSymbol").value.trim();
-      const rate = parseFloat($("#customRate").value);
-      if (!sym || isNaN(rate) || rate <= 0) return;
-      customSymbol = sym;
-      customRate = rate;
-      currentCurrency = "CUSTOM";
-      customPanel.classList.remove("visible");
-      fetchDashboardData();
-    });
-
-    // Close modal on backdrop click
-    customPanel.addEventListener("click", (e) => {
-      if (e.target === customPanel) {
-        customPanel.classList.remove("visible");
-        if (currentCurrency !== "CUSTOM") {
-          currencySelect.value = currentCurrency;
+    function setRoiModel(modelId, priceUsd) {
+      selectedModelName = modelId;
+      selectedModelUsdPer1K = priceUsd;
+      ['gpt-4o', 'claude-3-5', 'o3-mini', 'deepseek-r1'].forEach(id => {
+        const btn = document.getElementById('roi-mod-' + id);
+        if (id === modelId) {
+          btn.className = "rounded border border-white/25 bg-white/[0.08] py-2 font-mono text-xs font-medium text-[#F7F8F8] transition";
+        } else {
+          btn.className = "rounded border border-white/[0.07] bg-[#0C0D0E] py-2 font-mono text-xs text-[#8A8F98] transition hover:text-[#F7F8F8]";
         }
-      }
-    });
+      });
+      recalculateFinOps();
+    }
 
-    // Close modal on Escape
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && customPanel.classList.contains("visible")) {
-        customPanel.classList.remove("visible");
-        if (currentCurrency !== "CUSTOM") {
-          currencySelect.value = currentCurrency;
-        }
-      }
-    });
+    function recalculateFinOps() {
+      const reqs = parseInt(document.getElementById('roi-req-slider').value, 10);
+      const avgTok = parseInt(document.getElementById('roi-tok-slider').value, 10);
+      const hitRate = parseInt(document.getElementById('roi-hit-slider').value, 10) / 100;
+      const compRate = parseInt(document.getElementById('roi-comp-slider').value, 10) / 100;
 
-    /* =======================================================
-       INITIALIZATION
-       ======================================================= */
-    function init() {
-      renderGridMarkers();
-      switchLanguage(currentLang);
-      fetchDashboardData();
+      const dict = I18N[currentLang];
+      const formattedReqs = new Intl.NumberFormat(activeCurrency.locale || 'pt-BR').format(reqs);
+      const formattedTok = new Intl.NumberFormat(activeCurrency.locale || 'pt-BR').format(avgTok);
 
-      // Auto-refresh every 30 seconds
-      refreshInterval = setInterval(fetchDashboardData, 30_000);
+      document.getElementById('roi-req-display').textContent = `${formattedReqs} reqs${dict.per_month}`;
+      document.getElementById('roi-tok-display').textContent = `${formattedTok} tokens`;
+      document.getElementById('roi-hit-display').textContent = `${Math.round(hitRate * 100)}%`;
+      document.getElementById('roi-comp-display').textContent = `${Math.round(compRate * 100)}%`;
 
-      // Re-render grid markers on resize (debounced)
-      let resizeTimer;
-      window.addEventListener("resize", () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(renderGridMarkers, 250);
+      const totalTokensMonth = reqs * avgTok;
+      const rawApiUsd = (totalTokensMonth / 1000) * selectedModelUsdPer1K;
+      const cloudVectorInfraUsd = 320; // Redis + Pinecone managed monthly
+      const totalRawMonthlyUsd = rawApiUsd + cloudVectorInfraUsd;
+
+      const missRate = 1 - hitRate;
+      const meshMonthlyUsd = (totalTokensMonth * missRate * (1 - compRate) / 1000) * selectedModelUsdPer1K;
+
+      const monthlySavedUsd = Math.max(0, totalRawMonthlyUsd - meshMonthlyUsd);
+      const annualSavedUsd = monthlySavedUsd * 12;
+      const tokensEliminated = totalTokensMonth * (hitRate + missRate * compRate);
+
+      // Update Displays in Active Currency
+      document.getElementById('roi-annual-primary').textContent = `${formatMoney(annualSavedUsd, 0)} ${dict.per_year}`;
+      document.getElementById('roi-monthly-primary').textContent = `${formatMoney(monthlySavedUsd, 0)} ${dict.per_month}`;
+      document.getElementById('roi-usd-reference').textContent = `≈ $${Math.round(annualSavedUsd).toLocaleString('en-US')} USD ${dict.per_year}`;
+
+      document.getElementById('roi-raw-cost-val').textContent = `${formatMoney(totalRawMonthlyUsd, 0)} ${dict.per_month}`;
+      document.getElementById('roi-mesh-cost-val').textContent = `${formatMoney(meshMonthlyUsd, 0)} ${dict.per_month}`;
+
+      const barRatio = Math.max(8, Math.min(95, Math.round((meshMonthlyUsd / totalRawMonthlyUsd) * 100)));
+      document.getElementById('roi-mesh-bar').style.width = `${barRatio}%`;
+
+      document.getElementById('roi-tokens-saved').textContent = `${(tokensEliminated / 1e9).toFixed(2)}B tokens`;
+      document.getElementById('roi-infra-saved').textContent = `${formatMoney(cloudVectorInfraUsd, 0)} ${dict.per_month}`;
+      document.getElementById('roi-embed-zero').textContent = `${formatMoney(0, 2)} (100% Local)`;
+      document.getElementById('roi-footer-rate').textContent = `1 USD = ${activeCurrency.rate} ${activeCurrency.code}`;
+
+      // Also update Hero strip
+      document.getElementById('hero-live-savings').textContent = `${formatMoney(monthlySavedUsd, 0)} ${dict.per_month}`;
+      document.getElementById('hero-zero-infra').textContent = formatMoney(0, 2);
+    }
+
+    function refreshAllMonetaryDisplays() {
+      recalculateFinOps();
+      runWorkspaceSimulation(lastWsMode, true);
+    }
+
+    function copyExecutiveReport() {
+      const annualText = document.getElementById('roi-annual-primary').textContent;
+      const monthlyText = document.getElementById('roi-monthly-primary').textContent;
+      const report =
+`[TokenMesh FinOps Executive Projection]
+• Currency: ${activeCurrency.code} (${activeCurrency.symbol}) | Rate: 1 USD = ${activeCurrency.rate} ${activeCurrency.code}
+• Projected Annual Savings: ${annualText}
+• Projected Monthly Savings: ${monthlyText}
+• Architecture: Embedded DuckDB VSS (HNSW FLOAT[384]) + Local FastEmbed ONNX (Zero Cloud DB Cost)`;
+      copyToClipboard(report, currentLang === 'pt' ? 'Relatório FinOps copiado!' : 'FinOps Summary copied!');
+    }
+
+    // =========================================================================
+    // 5. SDK & BLUEPRINT CODE VIEWERS
+    // =========================================================================
+    const SDK_SNIPPETS = {
+      python: `from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v1",  # TokenMesh Local Gateway
+    api_key="sk-your-openai-key"
+)`,
+      ts: `import OpenAI from 'openai';
+
+const client = new OpenAI({
+  baseURL: 'http://localhost:8000/v1', // TokenMesh Local Gateway
+  apiKey: process.env.OPENAI_API_KEY,
+});`,
+      cursor: `# Cursor IDE -> Settings -> Models -> OpenAI Base URL:
+http://localhost:8000/v1
+# All IDE completions now cached in data/tokenmesh.duckdb (< 2ms)`
+    };
+
+    function switchSdkSnippet(key) {
+      document.getElementById('sdk-snippet-box').textContent = SDK_SNIPPETS[key];
+      ['python', 'ts', 'cursor'].forEach(k => {
+        const b = document.getElementById('sdk-btn-' + k);
+        b.className = k === key
+          ? "rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] text-[#F7F8F8]"
+          : "rounded px-2 py-0.5 font-mono text-[10px] text-[#8A8F98] hover:text-[#F7F8F8]";
       });
     }
 
-    document.addEventListener("DOMContentLoaded", init);
+    const BLUEPRINT_FILES = {
+      duckdb: `# core/db/duckdb_manager.py — Embedded DuckDB VSS (HNSW) + Columnar FinOps
+import json, threading, duckdb
+
+class DuckDBManager:
+    EMBEDDING_DIM = 384
+
+    def __init__(self, db_path: str = "data/tokenmesh.duckdb") -> None:
+        self._lock = threading.RLock()
+        self._conn = duckdb.connect(db_path, read_only=False)
+        with self._lock:
+            self._conn.execute("INSTALL vss; LOAD vss;")
+            self._conn.execute("SET hnsw_enable_experimental_persistence = true;")
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS semantic_cache (
+                    id VARCHAR PRIMARY KEY,
+                    model VARCHAR NOT NULL,
+                    embedding FLOAT[384] NOT NULL,
+                    response_payload JSON NOT NULL,
+                    completion_tokens INTEGER DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_cache_hnsw
+                ON semantic_cache USING HNSW (embedding) WITH (metric = 'cosine');
+            """)
+
+    def search_hnsw(self, vec: list[float], model: str, threshold: float = 0.95):
+        sql = """
+            SELECT id, array_cosine_similarity(embedding, ?::FLOAT[384]) AS sim,
+                   response_payload, completion_tokens
+            FROM semantic_cache WHERE model = ?
+            ORDER BY sim DESC LIMIT 1;
+        """
+        with self._lock:
+            row = self._conn.cursor().execute(sql, [vec, model]).fetchone()
+        if row and row[1] and float(row[1]) >= threshold:
+            return {"similarity": float(row[1]), "payload": json.loads(row[2]), "tokens": row[3]}
+        return None`,
+      fastapi: `# core/main.py — Async FastAPI Proxy + Non-Blocking ONNX FastEmbed
+import asyncio, time
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastembed import TextEmbedding
+from core.db.duckdb_manager import DuckDBManager
+
+app = FastAPI(title="TokenMesh Gateway")
+db = DuckDBManager("data/tokenmesh.duckdb")
+embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+
+@app.post("/v1/chat/completions")
+async def completions(payload: dict):
+    t0 = time.perf_counter_ns()
+    prompt = "\\n".join(m["content"] for m in payload.get("messages", []))
+    vec = await asyncio.to_thread(lambda: next(iter(embedder.embed([prompt]))).tolist())
+    hit = await asyncio.to_thread(db.search_hnsw, vec, payload.get("model", "gpt-4o"))
+    latency_ms = (time.perf_counter_ns() - t0) / 1e6
+    if hit:
+        return JSONResponse(
+            content=hit["payload"],
+            headers={"X-Cache": "HIT", "X-TokenMesh-Latency-Ms": f"{latency_ms:.2f}"}
+        )`,
+      compose: `services:
+  tokenmesh-proxy:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - TOKENMESH_DB_PATH=/app/data/tokenmesh.duckdb
+      - TOKENMESH_SIMILARITY_THRESHOLD=0.95
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped`
+    };
+
+    let activeBpTab = 'duckdb';
+    function selectBlueprintTab(tab) {
+      activeBpTab = tab;
+      document.getElementById('bp-code-view').textContent = BLUEPRINT_FILES[tab];
+      ['duckdb', 'fastapi', 'compose'].forEach(t => {
+        const b = document.getElementById('bp-tab-' + t);
+        b.className = t === tab
+          ? "rounded px-3 py-1 font-mono text-xs bg-white/10 text-[#F7F8F8]"
+          : "rounded px-3 py-1 font-mono text-xs text-[#8A8F98] hover:text-[#F7F8F8]";
+      });
+    }
+
+    function copyActiveBlueprintCode() {
+      copyToClipboard(BLUEPRINT_FILES[activeBpTab], currentLang === 'pt' ? 'Código copiado!' : 'Code copied!');
+    }
+
+    // =========================================================================
+    // 6. LINEAR COMMAND PALETTE (⌘K / Ctrl+K)
+    // =========================================================================
+    const COMMAND_ITEMS = [
+      { label: "Idioma: Português (PT-BR)", cat: "Language", action: () => setLanguage('pt') },
+      { label: "Language: English (EN)", cat: "Language", action: () => setLanguage('en') },
+      { label: "Idioma: Español (ES)", cat: "Language", action: () => setLanguage('es') },
+      { label: "Moeda: Real Brasileiro (R$ BRL)", cat: "FinOps Currency", action: () => selectPresetCurrency('BRL') },
+      { label: "Currency: US Dollar ($ USD)", cat: "FinOps Currency", action: () => selectPresetCurrency('USD') },
+      { label: "Currency: Euro (€ EUR)", cat: "FinOps Currency", action: () => selectPresetCurrency('EUR') },
+      { label: "Currency: British Pound (£ GBP)", cat: "FinOps Currency", action: () => selectPresetCurrency('GBP') },
+      { label: "Currency: Japanese Yen (¥ JPY)", cat: "FinOps Currency", action: () => selectPresetCurrency('JPY') },
+      { label: "Moeda Personalizada / Editar Taxa de Câmbio", cat: "FinOps Currency", action: () => { selectPresetCurrency('CUSTOM'); document.getElementById('finops').scrollIntoView({behavior:'smooth'}); } },
+      { label: "Simular Cache HIT no Console (< 2ms)", cat: "Proxy Simulator", action: () => { runWorkspaceSimulation('HIT'); document.getElementById('workspace').scrollIntoView({behavior:'smooth'}); } },
+      { label: "Copiar Comando Docker Quickstart", cat: "CLI", action: () => copyCliCommand() }
+    ];
+
+    function openCommandPalette() {
+      const modal = document.getElementById('cmd-palette-backdrop');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      const input = document.getElementById('cmd-search-input');
+      input.value = '';
+      filterCommandPalette('');
+      setTimeout(() => input.focus(), 40);
+    }
+
+    function closeCommandPalette() {
+      const modal = document.getElementById('cmd-palette-backdrop');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function filterCommandPalette(query) {
+      const q = query.toLowerCase().trim();
+      const filtered = COMMAND_ITEMS.filter(item =>
+        item.label.toLowerCase().includes(q) || item.cat.toLowerCase().includes(q)
+      );
+      const listEl = document.getElementById('cmd-list');
+      listEl.innerHTML = filtered.map((item, idx) => `
+        <button onclick="triggerCommandItem(${COMMAND_ITEMS.indexOf(item)})" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-[#F7F8F8] transition hover:bg-white/[0.07]">
+          <span>${item.label}</span>
+          <span class="font-mono text-[10px] text-[#5E636E]">${item.cat}</span>
+        </button>
+      `).join('');
+    }
+
+    function triggerCommandItem(index) {
+      closeCommandPalette();
+      if (COMMAND_ITEMS[index]) {
+        COMMAND_ITEMS[index].action();
+      }
+    }
+
+    // Keyboard shortcuts (⌘K / Ctrl+K, 1, 2, 3, C, ESC)
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      } else if (e.key === 'Escape') {
+        closeCommandPalette();
+      }
+    });
+
+    // =========================================================================
+    // 7. UTILITIES (CLIPBOARD, TOAST, STAR COUNTER)
+    // =========================================================================
+    let starred = false;
+    function toggleStar() {
+      starred = !starred;
+      document.getElementById('star-counter').textContent = starred ? '2,481' : '2,480';
+      showLinearToast(starred ? 'Starred tokenmesh/tokenmesh on GitHub' : 'Star removed');
+    }
+
+    function copyCliCommand() {
+      copyToClipboard('git clone https://github.com/tokenmesh/tokenmesh.git && cd tokenmesh && docker compose up -d', 'CLI command copied: docker compose up -d');
+    }
+
+    function copyToClipboard(text, toastMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showLinearToast(toastMsg);
+    }
+
+    function showLinearToast(msg) {
+      const t = document.getElementById('linear-toast');
+      document.getElementById('linear-toast-text').textContent = msg;
+      t.classList.remove('hidden');
+      t.classList.add('flex');
+      setTimeout(() => {
+        t.classList.add('hidden');
+        t.classList.remove('flex');
+      }, 2600);
+    }
+
+    // Bootstrap on load
+    window.onload = function () {
+      renderCurrencyControls();
+      switchSdkSnippet('python');
+      selectBlueprintTab('duckdb');
+      setLanguage('pt'); // Inicia 100% em Português com R$ BRL ativo
+      selectWorkspaceScenario(0);
+    };
   </script>
 </body>
 </html>

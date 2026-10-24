@@ -178,6 +178,22 @@ async def chat_completions(body: OpenAIChatRequest, request: Request) -> Any:
     auth_header: str = request.headers.get("authorization", "")
     api_key: str = auth_header.removeprefix("Bearer ").strip()
 
+    # -- Client overrides (Live Playground support) ---------------------------
+    dlp_header = request.headers.get("x-tokenmesh-dlp")
+    comp_header = request.headers.get("x-tokenmesh-compression")
+    thresh_header = request.headers.get("x-tokenmesh-threshold")
+    inspect_header = request.headers.get("x-tokenmesh-inspect") or request.query_params.get(
+        "inspect"
+    )
+
+    dlp_enabled = settings.DLP_ENABLED if dlp_header is None else dlp_header.lower() != "false"
+    comp_enabled = (
+        settings.COMPRESSION_ENABLED if comp_header is None else comp_header.lower() != "false"
+    )
+    threshold = (
+        settings.CACHE_SIMILARITY_THRESHOLD if thresh_header is None else float(thresh_header)
+    )
+
     # -- 1. Extract canonical text -------------------------------------------
     raw_messages: list[dict[str, Any]] = [m.model_dump() for m in body.messages]
     canonical_text: str = extract_canonical_text(raw_messages)
@@ -185,13 +201,13 @@ async def chat_completions(body: OpenAIChatRequest, request: Request) -> Any:
     # -- 2. DLP sanitization -------------------------------------------------
     dlp_redactions: int = 0
     sanitized_text: str = canonical_text
-    if settings.DLP_ENABLED:
+    if dlp_enabled:
         sanitized_text, dlp_redactions = dlp_processor.sanitize(canonical_text)
 
     # -- 3. Compression ------------------------------------------------------
     tokens_saved: int = 0
     compressed_text: str = sanitized_text
-    if settings.COMPRESSION_ENABLED:
+    if comp_enabled:
         compressed_text, tokens_saved = compressor.compress(sanitized_text)
 
     # -- 4. Embedding --------------------------------------------------------
@@ -204,9 +220,7 @@ async def chat_completions(body: OpenAIChatRequest, request: Request) -> Any:
     provider_name: str = "cache"
 
     if settings.CACHE_ENABLED:
-        search_result = await db_manager.semantic_search(
-            embedding, settings.CACHE_SIMILARITY_THRESHOLD
-        )
+        search_result = await db_manager.semantic_search(embedding, threshold)
         if search_result is not None:
             cache_hit = True
             similarity = search_result.get("similarity", 1.0)
@@ -256,6 +270,19 @@ async def chat_completions(body: OpenAIChatRequest, request: Request) -> Any:
                 media_type="text/event-stream",
                 headers=headers,
             )
+        if inspect_header and isinstance(cached_response, dict):
+            cached_response = dict(cached_response)
+            cached_response["_tokenmesh"] = {
+                "cache_hit": True,
+                "similarity": similarity,
+                "tokens_saved": total_tokens_saved,
+                "saved_usd": saved_usd,
+                "dlp_redactions": dlp_redactions,
+                "latency_ms": latency_ms,
+                "sanitized_text": sanitized_text,
+                "compressed_text": compressed_text,
+                "embedding_preview": [round(x, 4) for x in embedding[:6]],
+            }
         return JSONResponse(content=cached_response, headers=headers)
 
     # -- 7. Cache MISS — forward to upstream provider ------------------------
@@ -416,5 +443,19 @@ async def chat_completions(body: OpenAIChatRequest, request: Request) -> Any:
         dlp_redactions=dlp_redactions,
         latency_ms=latency_ms,
     )
+
+    if inspect_header and isinstance(response_payload, dict):
+        response_payload = dict(response_payload)
+        response_payload["_tokenmesh"] = {
+            "cache_hit": False,
+            "similarity": 0.0,
+            "tokens_saved": tokens_saved,
+            "saved_usd": saved_usd,
+            "dlp_redactions": dlp_redactions,
+            "latency_ms": latency_ms,
+            "sanitized_text": sanitized_text,
+            "compressed_text": compressed_text,
+            "embedding_preview": [round(x, 4) for x in embedding[:6]],
+        }
 
     return JSONResponse(content=response_payload, headers=headers)
