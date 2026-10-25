@@ -4,8 +4,8 @@
   <p align="center">
     <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
     <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white">
-    <a href="https://github.com/tokenmesh/tokenmesh/actions"><img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/tokenmesh/tokenmesh/ci.yml?branch=main&label=CI"></a>
-    <a href="https://hub.docker.com/r/tokenmesh/tokenmesh"><img alt="Docker" src="https://img.shields.io/docker/v/tokenmesh/tokenmesh?label=Docker&logo=docker"></a>
+    <a href="https://github.com/alphabyteguedes/TokenMesh/actions"><img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/alphabyteguedes/TokenMesh/ci.yml?branch=main&label=CI"></a>
+    <a href="https://hub.docker.com/r/alphabyteguedes/tokenmesh"><img alt="Docker" src="https://img.shields.io/docker/v/alphabyteguedes/tokenmesh?label=Docker&logo=docker"></a>
   </p>
 </p>
 
@@ -94,8 +94,8 @@
 ### Docker (Recommended)
 
 ```bash
-git clone https://github.com/tokenmesh/tokenmesh.git
-cd tokenmesh
+git clone https://github.com/alphabyteguedes/TokenMesh.git
+cd TokenMesh
 cp .env.example .env
 # Edit .env with your API keys
 docker compose up -d
@@ -106,8 +106,8 @@ docker compose up -d
 ### Local Installation
 
 ```bash
-git clone https://github.com/tokenmesh/tokenmesh.git
-cd tokenmesh
+git clone https://github.com/alphabyteguedes/TokenMesh.git
+cd TokenMesh
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows

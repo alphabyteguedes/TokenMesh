@@ -2,29 +2,29 @@
 # Each line is a file pattern followed by one or more owners.
 
 # Global
-* @tokenmesh/maintainers
+* @alphabyteguedes
 
 # Core Database Engine
-/core/db/ @tokenmesh/db-team
+/core/db/ @alphabyteguedes
 
 # Provider Integrations
-/core/providers/ @tokenmesh/providers-team
+/core/providers/ @alphabyteguedes
 
 # Processing Pipeline (DLP, Compression, Embedding)
-/core/pipeline/ @tokenmesh/pipeline-team
+/core/pipeline/ @alphabyteguedes
 
 # API Routes
-/core/api/ @tokenmesh/api-team
+/core/api/ @alphabyteguedes
 
 # Frontend Dashboard
-/web/ @tokenmesh/frontend-team
+/web/ @alphabyteguedes
 
 # CI/CD & DevOps
-/.github/ @tokenmesh/devops-team
-/Dockerfile @tokenmesh/devops-team
-/docker-compose.yml @tokenmesh/devops-team
+/.github/ @alphabyteguedes
+/Dockerfile @alphabyteguedes
+/docker-compose.yml @alphabyteguedes
 
 # Documentation
-/docs/ @tokenmesh/docs-team
-README.md @tokenmesh/maintainers
-CONTRIBUTING.md @tokenmesh/maintainers
+/docs/ @alphabyteguedes
+README.md @alphabyteguedes
+CONTRIBUTING.md @alphabyteguedes

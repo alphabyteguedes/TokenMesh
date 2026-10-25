@@ -47,10 +47,10 @@ dev = [
 tokenmesh = "core.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/tokenmesh/tokenmesh"
-Repository = "https://github.com/tokenmesh/tokenmesh"
-Issues = "https://github.com/tokenmesh/tokenmesh/issues"
-Documentation = "https://github.com/tokenmesh/tokenmesh#readme"
+Homepage = "https://github.com/alphabyteguedes/TokenMesh"
+Repository = "https://github.com/alphabyteguedes/TokenMesh"
+Issues = "https://github.com/alphabyteguedes/TokenMesh/issues"
+Documentation = "https://github.com/alphabyteguedes/TokenMesh#readme"
 
 [tool.hatch.build.targets.wheel]
 packages = ["core"]
