@@ -372,10 +372,35 @@
         </button>
 
         <!-- GitHub Star Button -->
-        <a href="https://github.com/alphabyteguedes/TokenMesh" target="_blank" rel="noopener noreferrer" class="btn-linear-primary flex items-center gap-1.5 px-3 py-1 text-xs no-underline">
-          <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-          <span>Star no GitHub</span>
-          <span class="font-mono text-[11px] opacity-75 tabular-nums">★</span>
+        <button onclick="toggleStar()" class="btn-linear-primary flex items-center gap-1.5 px-3 py-1 text-xs">
+          <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+          </svg>
+          <span>GitHub</span>
+          <span id="star-counter" class="font-mono text-[11px] opacity-75 tabular-nums">2,480</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================================================================= -->
+  <!-- MAIN STRUCTURAL RAIL CONTAINER (max-w-1200px, 1px Vertical Rails)       -->
+  <!-- ======================================================================= -->
+  <main class="relative z-10 mx-auto max-w-[1200px] border-x border-white/[0.06]">
+
+    <!-- 1. HERO SECTION -->
+    <section class="relative border-b border-white/[0.06] px-4 pt-16 pb-14 sm:px-10 md:pt-24 md:pb-20">
+      <!-- Crosshair markers -->
+      <div class="crosshair-marker -bottom-[5px] -left-[5px]"></div>
+      <div class="crosshair-marker -bottom-[5px] -right-[5px]"></div>
+
+      <div class="mx-auto max-w-3xl text-center">
+        <!-- Release Pill -->
+        <a href="#code-blueprint" class="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs text-[#8A8F98] transition hover:border-white/20 hover:text-[#F7F8F8]">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#5E6AD2]"></span>
+          <span data-i18n="hero_pill">TokenMesh 0.1 · Motor DuckDB VSS HNSW + FastEmbed Local</span>
+          <span class="text-[#5E636E]">→</span>
         </a>
 
         <!-- Linear Metallic Headline -->
@@ -392,7 +417,7 @@
         <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a href="https://github.com/alphabyteguedes/TokenMesh" target="_blank" rel="noopener noreferrer" class="btn-linear-primary flex items-center gap-2 px-4 py-2 text-[13px] no-underline">
             <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-            <span>Ver Repositório no GitHub</span>
+            <span>Ver no GitHub</span>
             <span>→</span>
           </a>
 
@@ -1909,11 +1934,12 @@ async def completions(payload: dict):
     function toggleStar() {
       starred = !starred;
       document.getElementById('star-counter').textContent = starred ? '2,481' : '2,480';
-      showLinearToast(starred ? 'Starred tokenmesh/tokenmesh on GitHub' : 'Star removed');
+      showLinearToast(starred ? 'Abrindo repositório no GitHub...' : 'Star removido');
+      window.open('https://github.com/alphabyteguedes/TokenMesh', '_blank');
     }
 
     function copyCliCommand() {
-      copyToClipboard('git clone https://github.com/alphabyteguedes/TokenMesh.git && cd tokenmesh && docker compose up -d', 'CLI command copied: docker compose up -d');
+      copyToClipboard('git clone https://github.com/alphabyteguedes/TokenMesh.git && cd TokenMesh && docker compose up -d', 'CLI command copied: docker compose up -d');
     }
 
     function copyToClipboard(text, toastMsg) {
