@@ -259,7 +259,7 @@ Before contributing, please review our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-To report a security vulnerability, please email **security@tokenmesh.dev**. See our [Security Policy](SECURITY.md) for details.
+To report a security vulnerability, please email **alphabyteltda@gmail.com**. See our [Security Policy](SECURITY.md) for details.
 
 ---
 
