@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1584 396" width="100%" height="100%">
+  <defs>
+    <!-- Background Linear Gradient -->
+    <linearGradient id="bannerBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#08090A" />
+      <stop offset="50%" stop-color="#0E0F14" />
+      <stop offset="100%" stop-color="#08090A" />
+    </linearGradient>
+
+    <!-- Atmospheric Glow -->
+    <radialGradient id="bannerGlow" cx="65%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#5E6AD2" stop-opacity="0.18" />
+      <stop offset="60%" stop-color="#4CB782" stop-opacity="0.04" />
+      <stop offset="100%" stop-color="transparent" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Indigo Accent Gradient -->
+    <linearGradient id="bIndigo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#808CF8" />
+      <stop offset="100%" stop-color="#4451B8" />
+    </linearGradient>
+
+    <!-- Emerald Accent Gradient -->
+    <linearGradient id="bEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5EEAD4" />
+      <stop offset="100%" stop-color="#1A7F54" />
+    </linearGradient>
+
+    <!-- Specular Top -->
+    <linearGradient id="bMetal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#6B7280" stop-opacity="0.5" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1584" height="396" fill="url(#bannerBg)" />
+  <rect width="1584" height="396" fill="url(#bannerGlow)" />
+
+  <!-- Architectural 1px Hairline Grid -->
+  <g opacity="0.08" stroke="#FFFFFF" stroke-width="1">
+    <line x1="0" y1="99" x2="1584" y2="99" />
+    <line x1="0" y1="198" x2="1584" y2="198" />
+    <line x1="0" y1="297" x2="1584" y2="297" />
+    <line x1="264" y1="0" x2="264" y2="396" />
+    <line x1="528" y1="0" x2="528" y2="396" />
+    <line x1="792" y1="0" x2="792" y2="396" />
+    <line x1="1056" y1="0" x2="1056" y2="396" />
+    <line x1="1320" y1="0" x2="1320" y2="396" />
+  </g>
+
+  <!-- Left Side: Brand Typography & Metrics -->
+  <g transform="translate(100, 105)">
+    <!-- Pill Badge -->
+    <rect width="260" height="26" rx="13" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.09)" stroke-width="1" />
+    <circle cx="14" cy="13" r="3.5" fill="#5E6AD2" />
+    <text x="26" y="17" font-family="'JetBrains Mono', monospace" font-size="11" fill="#8A8F98" font-weight="500">APACHE 2.0 · ZERO-CLOUD GATEWAY</text>
+
+    <!-- Main Title -->
+    <text x="0" y="82" font-family="'Inter', sans-serif" font-size="52" fill="#FFFFFF" font-weight="600" letter-spacing="-1.5">TokenMesh</text>
+
+    <!-- Tagline -->
+    <text x="0" y="122" font-family="'Inter', sans-serif" font-size="17" fill="#8A8F98" font-weight="400">
+      Zero-Cloud Semantic Cache (sub-2ms) &amp; Local DLP Gateway for LLMs
+    </text>
+
+    <!-- Telemetry Pills -->
+    <g transform="translate(0, 150)">
+      <rect x="0" y="0" width="130" height="24" rx="4" fill="rgba(76, 183, 130, 0.12)" stroke="rgba(76, 183, 130, 0.3)" stroke-width="1" />
+      <text x="10" y="16" font-family="'JetBrains Mono', monospace" font-size="11" fill="#4CB782" font-weight="600">⚡ DuckDB HNSW</text>
+
+      <rect x="142" y="0" width="124" height="24" rx="4" fill="rgba(94, 106, 210, 0.12)" stroke="rgba(94, 106, 210, 0.3)" stroke-width="1" />
+      <text x="152" y="16" font-family="'JetBrains Mono', monospace" font-size="11" fill="#808CF8" font-weight="600">🛡️ Zero-Trust DLP</text>
+
+      <rect x="278" y="0" width="154" height="24" rx="4" fill="rgba(255, 255, 255, 0.05)" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1" />
+      <text x="288" y="16" font-family="'JetBrains Mono', monospace" font-size="11" fill="#F7F8F8" font-weight="600">🔄 OpenAI &amp; Claude</text>
+    </g>
+  </g>
+
+  <!-- Right Side: Glowing Hexagonal Prism Wireframe -->
+  <g transform="translate(1260, 198) scale(0.95)">
+    <!-- Ambient Halo -->
+    <circle cx="0" cy="0" r="140" fill="#5E6AD2" opacity="0.14" />
+    <circle cx="0" cy="0" r="80" fill="#4CB782" opacity="0.1" />
+
+    <!-- Prism Facets -->
+    <polygon points="0,0 -110,-64 -110,64 0,128" fill="url(#bIndigo)" opacity="0.9" />
+    <polygon points="0,0 110,-64 110,64 0,128" fill="url(#bEmerald)" opacity="0.85" />
+    <polygon points="0,-128 110,-64 0,0 -110,-64" fill="url(#bMetal)" />
+
+    <!-- Prism Inner Seams -->
+    <polyline points="-110,-64 0,0 110,-64" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.85" />
+    <line x1="0" y1="0" x2="0" y2="128" stroke="#FFFFFF" stroke-width="2" opacity="0.6" />
+    <polygon points="0,-128 110,-64 110,64 0,128 -110,64 -110,-64" fill="none" stroke="rgba(255, 255, 255, 0.4)" stroke-width="1.5" />
+
+    <!-- Nodes -->
+    <circle cx="0" cy="0" r="7" fill="#FFFFFF" />
+    <circle cx="0" cy="-128" r="5" fill="#FFFFFF" />
+    <circle cx="-110" cy="-64" r="5" fill="#808CF8" />
+    <circle cx="110" cy="-64" r="5" fill="#5EEAD4" />
+    <circle cx="-110" cy="64" r="4.5" fill="#5E6AD2" />
+    <circle cx="110" cy="64" r="4.5" fill="#4CB782" />
+    <circle cx="0" cy="128" r="5" fill="#FFFFFF" opacity="0.8" />
+  </g>
+
+  <!-- Crosshair Precision Markers (+) -->
+  <g stroke="rgba(255, 255, 255, 0.25)" stroke-width="1">
+    <path d="M 32 32 L 42 32 M 37 27 L 37 37" />
+    <path d="M 1542 32 L 1552 32 M 1547 27 L 1547 37" />
+    <path d="M 32 364 L 42 364 M 37 359 L 37 369" />
+    <path d="M 1542 364 L 1552 364 M 1547 359 L 1547 369" />
+  </g>
+</svg>

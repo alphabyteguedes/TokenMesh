@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGlow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#141522" />
+      <stop offset="55%" stop-color="#0C0D11" />
+      <stop offset="100%" stop-color="#08090A" />
+    </radialGradient>
+
+    <!-- Indigo Accent Gradient -->
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#808CF8" />
+      <stop offset="50%" stop-color="#5E6AD2" />
+      <stop offset="100%" stop-color="#3B46A8" />
+    </linearGradient>
+
+    <!-- Emerald Accent Gradient (DuckDB speed) -->
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5EEAD4" />
+      <stop offset="50%" stop-color="#4CB782" />
+      <stop offset="100%" stop-color="#1A7F54" />
+    </linearGradient>
+
+    <!-- Metallic Facet Top -->
+    <linearGradient id="metalFacetTop" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="60%" stop-color="#D1D5DB" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#4B5563" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Core Glow Filter -->
+    <filter id="meshGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.8" />
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#5E6AD2" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" rx="104" fill="url(#bgGlow)" />
+  <rect width="510" height="510" x="1" y="1" rx="103" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1.5" />
+
+  <!-- Architectural Subtle Coordinate Grid -->
+  <g opacity="0.12" stroke="#FFFFFF" stroke-width="1" stroke-dasharray="2 4">
+    <line x1="128" y1="48" x2="128" y2="464" />
+    <line x1="256" y1="48" x2="256" y2="464" />
+    <line x1="384" y1="48" x2="384" y2="464" />
+    <line x1="48" y1="128" x2="464" y2="128" />
+    <line x1="48" y1="256" x2="464" y2="256" />
+    <line x1="48" y1="384" x2="464" y2="384" />
+  </g>
+
+  <!-- Central Interlocking TokenMesh Prism Emblem -->
+  <g filter="url(#softShadow)" transform="translate(0, -6)">
+    <!-- Ambient Backlight Halo -->
+    <circle cx="256" cy="262" r="110" fill="#5E6AD2" opacity="0.18" filter="url(#meshGlow)" />
+    <circle cx="256" cy="262" r="70" fill="#4CB782" opacity="0.14" filter="url(#meshGlow)" />
+
+    <!-- 1. Bottom Left Facet (Security / DLP Shield Anchor) -->
+    <polygon points="256,262 146,198 146,326 256,390" fill="url(#indigoGrad)" opacity="0.9" />
+
+    <!-- 2. Bottom Right Facet (DuckDB / Columnar Vector Mesh) -->
+    <polygon points="256,262 366,198 366,326 256,390" fill="url(#emeraldGrad)" opacity="0.85" />
+
+    <!-- 3. Top Hexagonal Facet (Specular Semantic Token Surface) -->
+    <polygon points="256,134 366,198 256,262 146,198" fill="url(#metalFacetTop)" />
+
+    <!-- Facet Inner Highlight Edge Hairlines -->
+    <polyline points="146,198 256,262 366,198" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.8" />
+    <line x1="256" y1="262" x2="256" y2="390" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+
+    <!-- Outer Prism Border Hairline -->
+    <polygon points="256,134 366,198 366,326 256,390 146,326 146,198" fill="none" stroke="rgba(255, 255, 255, 0.4)" stroke-width="1.5" />
+
+    <!-- Internal Mesh Routing Nodes (Sub-millisecond interconnects) -->
+    <!-- Center Node -->
+    <circle cx="256" cy="262" r="7" fill="#FFFFFF" />
+    <circle cx="256" cy="262" r="14" fill="none" stroke="#808CF8" stroke-width="1.5" opacity="0.75" />
+
+    <!-- Top Node -->
+    <circle cx="256" cy="134" r="5" fill="#FFFFFF" opacity="0.9" />
+
+    <!-- Left Node -->
+    <circle cx="146" cy="198" r="5" fill="#808CF8" />
+
+    <!-- Right Node -->
+    <circle cx="366" cy="198" r="5" fill="#5EEAD4" />
+
+    <!-- Bottom Left Node -->
+    <circle cx="146" cy="326" r="4.5" fill="#5E6AD2" />
+
+    <!-- Bottom Right Node -->
+    <circle cx="366" cy="326" r="4.5" fill="#4CB782" />
+
+    <!-- Bottom Center Node -->
+    <circle cx="256" cy="390" r="5" fill="#FFFFFF" opacity="0.8" />
+  </g>
+
+  <!-- Crosshair Precision Markers (+) -->
+  <g stroke="rgba(255, 255, 255, 0.3)" stroke-width="1">
+    <path d="M 40 48 L 48 48 M 44 44 L 44 52" />
+    <path d="M 464 48 L 472 48 M 468 44 L 468 52" />
+    <path d="M 40 464 L 48 464 M 44 460 L 44 468" />
+    <path d="M 464 464 L 472 464 M 468 460 L 468 468" />
+  </g>
+</svg>
